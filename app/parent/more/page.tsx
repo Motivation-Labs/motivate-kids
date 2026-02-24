@@ -3,6 +3,13 @@
 import { useRouter } from 'next/navigation'
 import { useFamily } from '@/context/FamilyContext'
 
+const ITEMS = [
+  { label: '🏅 Manage Badges', href: '/parent/badges' },
+  { label: '📋 Activity History', href: '/parent/history' },
+  { label: '⚙️ Family Settings', href: '/parent/settings' },
+  { label: '🔀 Switch User', href: '/' },
+]
+
 export default function MorePage() {
   const router = useRouter()
   const { store } = useFamily()
@@ -15,11 +22,7 @@ export default function MorePage() {
       </header>
 
       <div className="flex flex-col gap-3">
-        {[
-          { label: '🏅 Manage Badges', href: '/parent/badges' },
-          { label: '⚙️ Family Settings', href: '/parent/settings' },
-          { label: '🔀 Switch User', href: '/' },
-        ].map(item => (
+        {ITEMS.map(item => (
           <button
             key={item.href}
             onClick={() => router.push(item.href)}
