@@ -275,3 +275,49 @@ screen.
 | v1 (current) | Web PWA, localStorage, trust-based auth, core reward loop |
 | v2 | Backend (Supabase), multi-device sync, multi-parent, recurring actions, push notifications, data export |
 | v3 | Native iOS + Android app, AI-suggested actions, streaks, streak multipliers |
+
+---
+
+## Evaluation Log & Optimization Notes
+
+### Round 1 — Self-evaluation (Feb 2026)
+
+#### Bugs Fixed
+
+**[Bug] Hydration race condition — error page on kid tap**
+- **Root cause:** `FamilyContext` hydrates from localStorage asynchronously. On first render, `store` is empty (`DEFAULT_STORE`). Pages that check `if (!kid)` and redirect via `useEffect` would fire the redirect before the data was loaded, causing an error/blank page.
+- **Fix:** Added `hydrated: boolean` to `FamilyContext`. All pages that guard on `kid`/`family` existence now wait for `hydrated` before redirecting. Pattern: `if (hydrated && !kid) router.replace(...)` and `if (!hydrated || !kid) return null`.
+- **Affected pages:** `/parent`, `/parent/kids/[id]`, `/kids/[id]`, `/kids/[id]/badges`, `/kids/[id]/rewards`.
+
+#### UX Improvements Applied
+
+**[UX] Add kid is a rare action — demoted from primary to secondary**
+- Adding a kid happens once per year at most for a conventional family. Previously, a prominent "+ Kid" button sat in the header of the Home page.
+- **Fix:** Removed the header button. "+ Add another kid" is now a dashed outline button at the bottom of the kid list — visually quiet but discoverable. The first-run empty state retains a prominent CTA.
+
+**[UX] Single-kid family: FAB should not ask "pick a kid"**
+- When there is only one kid, the logging FAB's kid-picker step is pure friction.
+- **Fix:** `LogActionFab` detects single-kid families. If only one kid exists, the kid is auto-selected and shown as a read-only header in the modal. The picker dropdown is hidden entirely. Multi-kid families still see the full picker (now rendered as tap-target buttons instead of a select).
+
+**[UX] Actions tab lacked usage context**
+- Actions are the core catalog parents build up over time, but there was no signal about which ones were actually being used.
+- **Fix:** Added per-action completion count (e.g., `✓ 12×`) computed from the transaction log. Added sort bar: Default | Most used | Category | Stars ↓. Helps parents prune unused actions and surface favorites.
+
+**[UX] Redemption flow was invisible**
+- The Rewards tab managed the reward catalog but gave no hint that redemption happened elsewhere (kid's profile page). Users could not discover the redeem path.
+- **Fix:** Added a persistent info banner at the top of the Rewards tab explaining *how* redemption works with a direct link to each kid's profile page. Reward cost input changed from a limited slider (5–100) to quick-pick chips + custom number input (matching actions).
+
+**[UX] Rewards cost range was too narrow**
+- Actions can now be worth up to 500 stars (for achievements), but rewards were capped at 100 stars via a slider. Inconsistency.
+- **Fix:** Rewards now use quick-pick chips (10, 20, 30, 50, 75, 100) plus a custom number input — uncapped, consistent with the actions pattern.
+
+#### Observations for Future Iterations (v1.x / v2)
+
+- **Kid dashboard (/kids/[id]):** The recent activity feed only shows 5 entries and displays generic emoji (⭐/🎁). Enhance with category-specific icons and a "See all" link.
+- **First launch UX:** After setup wizard completes, user lands on parent dashboard with no guidance about next steps. A one-time "tips" banner (log your first action → set up rewards → redeem) would reduce drop-off.
+- **Action logging confirmation:** Currently shows a toast. For young kids watching over parent's shoulder, a more celebratory flash (animation, confetti) would reinforce the reward moment.
+- **Empty Actions tab:** When no actions exist, the empty state should link directly to the setup wizard's action step rather than just saying "Add one!".
+- **Navigation clarity:** "More" tab is a catch-all. As the app grows, Badges and History should graduate to their own tabs or be surfaced more prominently (e.g., per-kid badges visible on the kid card).
+- **Redeem section on kid profile:** Label "Redeem a reward" is parent-centric but clear. Consider also showing the kid's recent redemption history inline so parents can track what was given.
+- **Points economy calibration:** With actions supporting 1–500 stars and rewards supporting custom costs, families need guidance on balancing the economy. A setup nudge ("typical actions: 3–10 stars; typical rewards: 20–50 stars") would help first-time parents.
+- **LogActionFab on kid detail page:** The FAB is redundant when already on a kid's page that has an inline action list. Consider hiding FAB on `/parent/kids/[id]` to reduce visual clutter.

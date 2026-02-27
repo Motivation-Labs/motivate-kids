@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useFamily } from '@/context/FamilyContext'
 import type { Reward } from '@/types'
+
+const COST_PRESETS = [10, 20, 30, 50, 75, 100]
 
 const EMPTY: Omit<Reward, 'id' | 'familyId'> = {
   name: '',
@@ -12,6 +15,7 @@ const EMPTY: Omit<Reward, 'id' | 'familyId'> = {
 }
 
 export default function RewardsPage() {
+  const router = useRouter()
   const { store, addReward, updateReward, removeReward } = useFamily()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Reward | null>(null)
@@ -44,7 +48,7 @@ export default function RewardsPage() {
 
   return (
     <main className="p-5 max-w-lg mx-auto">
-      <header className="flex items-center justify-between mb-6 pt-4">
+      <header className="flex items-center justify-between mb-4 pt-4">
         <h1 className="text-2xl font-bold text-amber-900">Rewards</h1>
         <button
           onClick={openNew}
@@ -53,6 +57,28 @@ export default function RewardsPage() {
           + New
         </button>
       </header>
+
+      {/* Redemption hint */}
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-5 flex items-start gap-3">
+        <span className="text-xl mt-0.5">💡</span>
+        <div>
+          <p className="text-amber-800 text-sm font-medium">How to redeem</p>
+          <p className="text-amber-600 text-sm">Open a kid&apos;s profile and tap <strong>Redeem a reward</strong>. Stars are deducted immediately.</p>
+          {store.kids.length > 0 && (
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {store.kids.map(kid => (
+                <button
+                  key={kid.id}
+                  onClick={() => router.push(`/parent/kids/${kid.id}`)}
+                  className="text-xs font-bold px-2.5 py-1 rounded-lg bg-white border border-amber-200 text-amber-700 hover:border-amber-400 transition-colors"
+                >
+                  {kid.avatar} {kid.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {active.length === 0 && !showForm && (
         <div className="text-center py-10">
@@ -102,7 +128,7 @@ export default function RewardsPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowForm(false)}>
-          <div className="bg-white w-full rounded-t-3xl p-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white w-full rounded-t-3xl p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-amber-900">{editing ? 'Edit reward' : 'New reward'}</h2>
             <input
               autoFocus
@@ -117,14 +143,35 @@ export default function RewardsPage() {
               onChange={e => setDraft(d => ({ ...d, description: e.target.value }))}
               className="rounded-xl border-2 border-amber-200 px-3 py-2 text-amber-900 outline-none focus:border-amber-400"
             />
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-amber-700">Cost: {draft.pointsCost} ⭐</label>
-              <input
-                type="range" min={5} max={100} step={5}
-                value={draft.pointsCost}
-                onChange={e => setDraft(d => ({ ...d, pointsCost: Number(e.target.value) }))}
-                className="accent-amber-500"
-              />
+              <div className="flex gap-2 flex-wrap">
+                {COST_PRESETS.map(v => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setDraft(d => ({ ...d, pointsCost: v }))}
+                    className={`px-3 py-1.5 rounded-xl text-sm font-bold border-2 transition-colors ${
+                      draft.pointsCost === v
+                        ? 'border-amber-500 bg-amber-500 text-white'
+                        : 'border-amber-200 text-amber-600 hover:border-amber-400'
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-amber-500">Custom:</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={draft.pointsCost}
+                  onChange={e => setDraft(d => ({ ...d, pointsCost: Math.max(1, Number(e.target.value)) }))}
+                  className="w-24 rounded-xl border-2 border-amber-200 px-3 py-1.5 text-amber-900 outline-none focus:border-amber-400 text-center font-bold"
+                />
+                <span className="text-amber-500 text-sm">⭐</span>
+              </div>
             </div>
             <button
               onClick={handleSave}

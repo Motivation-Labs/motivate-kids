@@ -7,11 +7,11 @@ import { useFamily } from '@/context/FamilyContext'
 export default function KidDashboard({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const { store, getBalance, getKidBadges, getTransactions } = useFamily()
+  const { store, hydrated, getBalance, getKidBadges, getTransactions } = useFamily()
 
   const kid = store.kids.find(k => k.id === id)
-  useEffect(() => { if (!kid) router.replace('/') }, [kid, router])
-  if (!kid) return null
+  useEffect(() => { if (hydrated && !kid) router.replace('/') }, [hydrated, kid, router])
+  if (!hydrated || !kid) return null
 
   const balance = getBalance(id)
   const kidBadgeRecords = getKidBadges(id)

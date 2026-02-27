@@ -11,17 +11,17 @@ const EMPTY = { name: '', avatar: AVATARS[0], colorAccent: COLORS[0] }
 
 export default function ParentDashboard() {
   const router = useRouter()
-  const { store, getBalance, addKid, updateKid, removeKid } = useFamily()
+  const { store, hydrated, getBalance, addKid, updateKid, removeKid } = useFamily()
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Kid | null>(null)
   const [draft, setDraft] = useState(EMPTY)
 
   useEffect(() => {
-    if (!store.family) router.replace('/')
-  }, [store.family, router])
+    if (hydrated && !store.family) router.replace('/')
+  }, [hydrated, store.family, router])
 
-  if (!store.family) return null
+  if (!hydrated || !store.family) return null
 
   function openNew() {
     setEditing(null)
@@ -52,20 +52,12 @@ export default function ParentDashboard() {
           <p className="text-sm text-amber-600 font-medium">Welcome back 👋</p>
           <h1 className="text-2xl font-bold text-amber-900">{store.family.name}</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={openNew}
-            className="px-3 py-1.5 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 transition-colors text-sm"
-          >
-            + Kid
-          </button>
-          <button
-            onClick={() => router.push('/')}
-            className="text-sm text-amber-400 hover:text-amber-600 transition-colors"
-          >
-            Switch
-          </button>
-        </div>
+        <button
+          onClick={() => router.push('/')}
+          className="text-sm text-amber-400 hover:text-amber-600 transition-colors"
+        >
+          Switch
+        </button>
       </header>
 
       {store.kids.length === 0 ? (
@@ -99,11 +91,12 @@ export default function ParentDashboard() {
                     <p className="font-bold text-amber-900 text-lg">{kid.name}</p>
                     <p className="text-amber-500 text-sm">⭐ {balance} star{balance !== 1 ? 's' : ''}</p>
                   </div>
+                  <span className="ml-auto text-amber-300 text-lg">›</span>
                 </button>
                 <div className="flex items-center gap-1 pr-3">
                   <button
                     onClick={() => openEdit(kid)}
-                    className="p-2 rounded-xl text-amber-400 hover:text-amber-600 hover:bg-amber-50 transition-colors text-sm"
+                    className="p-2 rounded-xl text-amber-300 hover:text-amber-500 hover:bg-amber-50 transition-colors text-sm"
                   >
                     ✏️
                   </button>
@@ -111,7 +104,7 @@ export default function ParentDashboard() {
                     onClick={() => {
                       if (confirm(`Remove ${kid.name}? Their history will remain.`)) removeKid(kid.id)
                     }}
-                    className="p-2 rounded-xl text-red-300 hover:text-red-500 hover:bg-red-50 transition-colors text-sm"
+                    className="p-2 rounded-xl text-red-200 hover:text-red-400 hover:bg-red-50 transition-colors text-sm"
                   >
                     🗑️
                   </button>
@@ -119,6 +112,13 @@ export default function ParentDashboard() {
               </div>
             )
           })}
+          {/* Add kid — secondary action, folded below the list */}
+          <button
+            onClick={openNew}
+            className="w-full py-3 rounded-2xl border-2 border-dashed border-amber-200 text-amber-400 hover:border-amber-400 hover:text-amber-600 transition-colors text-sm font-medium"
+          >
+            + Add another kid
+          </button>
         </div>
       )}
 

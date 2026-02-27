@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useReducer,
+  useState,
   useEffect,
   useCallback,
   type ReactNode,
@@ -176,6 +177,7 @@ function reducer(state: AppStore, action: StoreAction): AppStore {
 
 interface FamilyContextValue {
   store: AppStore
+  hydrated: boolean
 
   // Family
   createFamily: (name: string) => void
@@ -230,11 +232,13 @@ const FamilyContext = createContext<FamilyContextValue | null>(null)
 
 export function FamilyProvider({ children }: { children: ReactNode }) {
   const [store, dispatch] = useReducer(reducer, DEFAULT_STORE)
+  const [hydrated, setHydrated] = useState(false)
 
   // Hydrate from localStorage on first mount
   useEffect(() => {
     const saved = loadStore()
     dispatch({ type: 'HYDRATE', payload: saved })
+    setHydrated(true)
   }, [])
 
   // Persist to localStorage whenever store changes
@@ -479,6 +483,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
 
   const value: FamilyContextValue = {
     store,
+    hydrated,
     createFamily,
     updateFamilyName,
     addKid,

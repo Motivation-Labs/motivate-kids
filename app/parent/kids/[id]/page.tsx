@@ -23,7 +23,7 @@ function formatTimestamp(ts: string): string {
 export default function ParentKidPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const { store, getBalance, logCompletion, awardBonus, redeemReward, getTransactions } = useFamily()
+  const { store, hydrated, getBalance, logCompletion, awardBonus, redeemReward, getTransactions } = useFamily()
 
   const [flash, setFlash] = useState<string | null>(null)
   const [showBonus, setShowBonus] = useState(false)
@@ -33,8 +33,8 @@ export default function ParentKidPage({ params }: { params: Promise<{ id: string
   const [showAllActivity, setShowAllActivity] = useState(false)
 
   const kid = store.kids.find(k => k.id === id)
-  useEffect(() => { if (!kid) router.replace('/parent') }, [kid, router])
-  if (!kid) return null
+  useEffect(() => { if (hydrated && !kid) router.replace('/parent') }, [hydrated, kid, router])
+  if (!hydrated || !kid) return null
 
   const balance = getBalance(id)
   const activeActions = store.actions.filter(a => a.isActive)
