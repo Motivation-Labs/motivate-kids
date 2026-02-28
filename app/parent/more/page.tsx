@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useFamily } from '@/context/FamilyContext'
 
 const ITEMS = [
+  { label: '👶 Manage Kids', href: '/parent/kids' },
   { label: '🏅 Manage Badges', href: '/parent/badges' },
   { label: '📋 Activity History', href: '/parent/history' },
   { label: '⚙️ Family Settings', href: '/parent/settings' },
