@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useMemo } from 'react'
 import { useFamily } from '@/context/FamilyContext'
 import type { Reward } from '@/types'
 
@@ -15,7 +14,6 @@ const EMPTY: Omit<Reward, 'id' | 'familyId'> = {
 }
 
 export default function RewardsPage() {
-  const router = useRouter()
   const { store, addReward, updateReward, removeReward } = useFamily()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Reward | null>(null)
@@ -23,6 +21,17 @@ export default function RewardsPage() {
 
   const active = store.rewards.filter(r => r.isActive)
   const inactive = store.rewards.filter(r => !r.isActive)
+
+  // Redemption count per reward
+  const redemptionCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    store.transactions.forEach(t => {
+      if (t.type === 'redeem' && t.rewardId && t.status === 'approved') {
+        counts[t.rewardId] = (counts[t.rewardId] ?? 0) + 1
+      }
+    })
+    return counts
+  }, [store.transactions])
 
   function openNew() {
     setEditing(null)
@@ -63,20 +72,7 @@ export default function RewardsPage() {
         <span className="text-xl mt-0.5">💡</span>
         <div>
           <p className="text-amber-800 text-sm font-medium">How to redeem</p>
-          <p className="text-amber-600 text-sm">Open a kid&apos;s profile and tap <strong>Redeem a reward</strong>. Stars are deducted immediately.</p>
-          {store.kids.length > 0 && (
-            <div className="flex gap-2 mt-2 flex-wrap">
-              {store.kids.map(kid => (
-                <button
-                  key={kid.id}
-                  onClick={() => router.push(`/parent/kids/${kid.id}`)}
-                  className="text-xs font-bold px-2.5 py-1 rounded-lg bg-white border border-amber-200 text-amber-700 hover:border-amber-400 transition-colors"
-                >
-                  {kid.avatar} {kid.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <p className="text-amber-600 text-sm">Go to the Home tab, select a kid, then tap a reward under <strong>Redeem a reward</strong>.</p>
         </div>
       </div>
 
@@ -88,27 +84,38 @@ export default function RewardsPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        {active.map(reward => (
-          <div key={reward.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-start gap-3">
-            <span className="text-2xl">🎁</span>
-            <div className="flex-1">
-              <p className="font-bold text-amber-900">{reward.name}</p>
-              {reward.description && (
-                <p className="text-amber-600 text-sm mt-0.5">{reward.description}</p>
-              )}
-              <p className="text-amber-500 text-sm mt-1">⭐ {reward.pointsCost} stars</p>
+        {active.map(reward => {
+          const count = redemptionCounts[reward.id] ?? 0
+          return (
+            <div key={reward.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-start gap-3">
+              <span className="text-2xl">🎁</span>
+              <div className="flex-1">
+                <p className="font-bold text-amber-900">{reward.name}</p>
+                {reward.description && (
+                  <p className="text-amber-600 text-sm mt-0.5">{reward.description}</p>
+                )}
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
+                  <p className="text-amber-500 text-sm">⭐ {reward.pointsCost} stars</p>
+                  {count > 0 && (
+                    <>
+                      <span className="text-amber-300 text-xs">·</span>
+                      <span className="text-green-500 text-xs font-medium">🎉 Redeemed {count}×</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => openEdit(reward)} className="text-amber-400 hover:text-amber-600 text-sm">Edit</button>
+                <button
+                  onClick={() => updateReward({ ...reward, isActive: false })}
+                  className="text-red-300 hover:text-red-500 text-sm"
+                >
+                  Hide
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => openEdit(reward)} className="text-amber-400 hover:text-amber-600 text-sm">Edit</button>
-              <button
-                onClick={() => updateReward({ ...reward, isActive: false })}
-                className="text-red-300 hover:text-red-500 text-sm"
-              >
-                Hide
-              </button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {inactive.length > 0 && (

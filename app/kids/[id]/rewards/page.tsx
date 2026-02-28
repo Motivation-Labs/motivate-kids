@@ -7,15 +7,19 @@ import { useFamily } from '@/context/FamilyContext'
 export default function KidRewardsPage({ params }: { params: { id: string } }) {
   const { id } = params
   const router = useRouter()
-  const { store, hydrated, getBalance } = useFamily()
+  const { store, hydrated, getBalance, addToWishlist, removeFromWishlist } = useFamily()
 
   const kid = store.kids.find(k => k.id === id)
   useEffect(() => { if (hydrated && !kid) router.replace('/') }, [hydrated, kid, router])
   if (!hydrated || !kid) return null
 
   const balance = getBalance(id)
+  const wishlist = kid.wishlist ?? []
   const activeRewards = [...store.rewards.filter(r => r.isActive)]
     .sort((a, b) => a.pointsCost - b.pointsCost)
+
+  const wishlisted = activeRewards.filter(r => wishlist.includes(r.id))
+  const notWishlisted = activeRewards.filter(r => !wishlist.includes(r.id))
 
   return (
     <main className="p-5 max-w-sm mx-auto">
@@ -31,50 +35,125 @@ export default function KidRewardsPage({ params }: { params: { id: string } }) {
         </div>
       </header>
 
+      {/* Wishlist section */}
+      {wishlisted.length > 0 && (
+        <section className="mb-5">
+          <h2 className="text-xs font-bold text-amber-400 uppercase tracking-wide mb-2">
+            ✨ My Wishlist ({wishlisted.length}/3)
+          </h2>
+          <div className="flex flex-col gap-2">
+            {wishlisted.map(reward => {
+              const canAfford = balance >= reward.pointsCost
+              const progress = Math.min(1, balance / reward.pointsCost)
+              return (
+                <div key={reward.id} className={`bg-white rounded-2xl p-4 shadow-sm border-2 ${canAfford ? 'border-green-300' : 'border-amber-200'}`}>
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🎁</span>
+                    <div className="flex-1">
+                      <p className="font-bold text-amber-900">{reward.name}</p>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className={`text-sm font-bold ${canAfford ? 'text-green-600' : 'text-amber-500'}`}>
+                          ⭐ {reward.pointsCost}
+                          {!canAfford && <span className="font-normal text-amber-400"> · need {reward.pointsCost - balance} more</span>}
+                        </p>
+                        {canAfford && <span className="text-green-600 text-xs font-bold">✓ Can redeem!</span>}
+                      </div>
+                      {/* Progress bar */}
+                      {!canAfford && (
+                        <div className="mt-2">
+                          <div className="h-2 bg-amber-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-amber-400 rounded-full transition-all"
+                              style={{ width: `${progress * 100}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-amber-400 mt-0.5">{balance} / {reward.pointsCost} stars</p>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => removeFromWishlist(id, reward.id)}
+                      className="text-amber-300 hover:text-amber-500 text-xs mt-0.5"
+                      title="Remove from wishlist"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {canAfford && (
+                    <div
+                      className="mt-3 w-full py-2 rounded-xl font-bold text-white text-center text-sm"
+                      style={{ backgroundColor: kid.colorAccent }}
+                    >
+                      ✨ Ask a parent to redeem!
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* All rewards */}
       {activeRewards.length === 0 ? (
         <div className="text-center py-16">
           <div className="text-6xl mb-3">🎁</div>
           <p className="text-amber-700">No rewards yet!</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {activeRewards.map(reward => {
-            const canAfford = balance >= reward.pointsCost
-            return (
-              <div
-                key={reward.id}
-                className={`bg-white rounded-2xl p-4 shadow-sm transition-all ${!canAfford ? 'opacity-55' : ''}`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-3xl">🎁</span>
-                  <div className="flex-1">
-                    <p className={`font-bold text-lg ${canAfford ? 'text-amber-900' : 'text-amber-400'}`}>
-                      {reward.name}
-                    </p>
-                    {reward.description && (
-                      <p className="text-amber-500 text-sm">{reward.description}</p>
-                    )}
-                    <p className={`text-sm font-bold mt-1 ${canAfford ? 'text-amber-500' : 'text-amber-300'}`}>
-                      ⭐ {reward.pointsCost} stars
-                      {!canAfford && (
-                        <span className="font-normal"> · need {reward.pointsCost - balance} more</span>
+        <section>
+          {wishlisted.length > 0 && (
+            <h2 className="text-xs font-bold text-amber-400 uppercase tracking-wide mb-2">All Rewards</h2>
+          )}
+          <div className="flex flex-col gap-3">
+            {notWishlisted.map(reward => {
+              const canAfford = balance >= reward.pointsCost
+              return (
+                <div
+                  key={reward.id}
+                  className={`bg-white rounded-2xl p-4 shadow-sm border-2 transition-all ${
+                    canAfford ? 'border-green-300' : 'border-transparent'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-3xl">🎁</span>
+                    <div className="flex-1">
+                      <p className={`font-bold text-lg ${canAfford ? 'text-amber-900' : 'text-amber-400'}`}>
+                        {reward.name}
+                      </p>
+                      {reward.description && (
+                        <p className="text-amber-500 text-sm">{reward.description}</p>
                       )}
-                    </p>
+                      <p className={`text-sm font-bold mt-1 ${canAfford ? 'text-green-600' : 'text-amber-300'}`}>
+                        ⭐ {reward.pointsCost} stars
+                        {!canAfford && (
+                          <span className="font-normal"> · need {reward.pointsCost - balance} more</span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {canAfford && (
-                  <div
-                    className="mt-3 w-full py-2.5 rounded-xl font-bold text-white text-center text-sm"
-                    style={{ backgroundColor: kid.colorAccent }}
-                  >
-                    ✨ Ask a parent to redeem!
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                  {canAfford ? (
+                    <div
+                      className="mt-3 w-full py-2.5 rounded-xl font-bold text-white text-center text-sm"
+                      style={{ backgroundColor: kid.colorAccent }}
+                    >
+                      ✨ Ask a parent to redeem!
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => addToWishlist(id, reward.id)}
+                      disabled={wishlist.length >= 3}
+                      className="mt-3 w-full py-2 rounded-xl border-2 border-amber-200 text-amber-500 text-sm font-medium hover:border-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {wishlist.length >= 3 ? 'Wishlist full (max 3)' : '+ Add to wishlist'}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
       )}
     </main>
   )

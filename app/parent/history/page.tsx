@@ -55,7 +55,7 @@ export default function HistoryPage() {
             const kid = store.kids.find(k => k.id === tx.kidId)
             const action = tx.actionId ? store.actions.find(a => a.id === tx.actionId) : null
             const reward = tx.rewardId ? store.rewards.find(r => r.id === tx.rewardId) : null
-            const label = action?.name ?? reward?.name ?? tx.note ?? (tx.type === 'earn' ? 'Bonus stars' : 'Redemption')
+            const label = action?.name ?? reward?.name ?? tx.reason ?? tx.note ?? (tx.type === 'earn' ? 'Bonus stars' : tx.type === 'deduct' ? 'Deduction' : 'Redemption')
             const isEarn = tx.type === 'earn'
 
             return (

@@ -7,7 +7,8 @@ import type { Transaction, KidBadge } from '@/types'
 export function getKidBalance(kidId: string, transactions: Transaction[]): number {
   return transactions.reduce((sum, tx) => {
     if (tx.kidId !== kidId || tx.status !== 'approved') return sum
-    return tx.type === 'earn' ? sum + tx.amount : sum - tx.amount
+    if (tx.type === 'earn') return sum + tx.amount
+    return sum - tx.amount  // redeem and deduct both subtract
   }, 0)
 }
 

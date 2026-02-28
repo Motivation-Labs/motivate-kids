@@ -187,6 +187,8 @@ interface FamilyContextValue {
   addKid: (data: Omit<Kid, 'id' | 'familyId' | 'createdAt'>) => void
   updateKid: (kid: Kid) => void
   removeKid: (kidId: string) => void
+  addToWishlist: (kidId: string, rewardId: string) => void
+  removeFromWishlist: (kidId: string, rewardId: string) => void
 
   // Actions
   addAction: (data: Omit<Action, 'id' | 'familyId'>) => void
@@ -209,7 +211,7 @@ interface FamilyContextValue {
   removeCategory: (categoryId: string) => void
 
   // Transactions
-  logCompletion: (kidId: string, actionId: string, note?: string) => void
+  logCompletion: (kidId: string, actionId: string, amount?: number, reason?: string) => void
   awardBonus: (kidId: string, amount: number, note: string) => void
   redeemReward: (kidId: string, rewardId: string) => void
   requestRedemption: (kidId: string, rewardId: string) => void
@@ -287,6 +289,26 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'REMOVE_KID', payload: kidId })
   }, [])
 
+  const addToWishlist = useCallback(
+    (kidId: string, rewardId: string) => {
+      const kid = store.kids.find(k => k.id === kidId)
+      if (!kid) return
+      const current = kid.wishlist ?? []
+      if (current.includes(rewardId) || current.length >= 3) return
+      dispatch({ type: 'UPDATE_KID', payload: { ...kid, wishlist: [...current, rewardId] } })
+    },
+    [store.kids],
+  )
+
+  const removeFromWishlist = useCallback(
+    (kidId: string, rewardId: string) => {
+      const kid = store.kids.find(k => k.id === kidId)
+      if (!kid) return
+      dispatch({ type: 'UPDATE_KID', payload: { ...kid, wishlist: (kid.wishlist ?? []).filter(id => id !== rewardId) } })
+    },
+    [store.kids],
+  )
+
   // ── Actions ───────────────────────────────────────────────────────────────
 
   const addAction = useCallback(
@@ -362,18 +384,19 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   // ── Transactions ──────────────────────────────────────────────────────────
 
   const logCompletion = useCallback(
-    (kidId: string, actionId: string, note?: string) => {
+    (kidId: string, actionId: string, amount?: number, reason?: string) => {
       const action = store.actions.find(a => a.id === actionId)
       if (!action) return
+      const finalAmount = amount ?? action.pointsValue
       const tx: Transaction = {
         id: generateId(),
         kidId,
-        type: 'earn',
-        amount: action.pointsValue,
+        type: action.isDeduction ? 'deduct' : 'earn',
+        amount: finalAmount,
         actionId,
         status: 'approved',
         timestamp: new Date().toISOString(),
-        note,
+        reason,
       }
       dispatch({ type: 'ADD_TRANSACTION', payload: tx })
 
@@ -420,8 +443,13 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
         timestamp: new Date().toISOString(),
       }
       dispatch({ type: 'ADD_TRANSACTION', payload: tx })
+      // Auto-remove redeemed reward from the kid's wishlist
+      const kid = store.kids.find(k => k.id === kidId)
+      if (kid?.wishlist?.includes(rewardId)) {
+        dispatch({ type: 'UPDATE_KID', payload: { ...kid, wishlist: kid.wishlist.filter(id => id !== rewardId) } })
+      }
     },
-    [store.rewards],
+    [store.rewards, store.kids],
   )
 
   const requestRedemption = useCallback(
@@ -489,6 +517,8 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     addKid,
     updateKid,
     removeKid,
+    addToWishlist,
+    removeFromWishlist,
     addAction,
     updateAction,
     archiveAction,

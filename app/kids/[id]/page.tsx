@@ -97,7 +97,7 @@ export default function KidDashboard({ params }: { params: { id: string } }) {
               const reward = tx.rewardId ? store.rewards.find(r => r.id === tx.rewardId) : null
               const isEarn = tx.type === 'earn'
               const icon = isEarn ? getCategoryIcon(tx.actionId) : '🎁'
-              const label = action?.name ?? reward?.name ?? tx.note ?? (isEarn ? 'Bonus stars' : 'Reward')
+              const label = action?.name ?? reward?.name ?? tx.reason ?? tx.note ?? (isEarn ? 'Bonus stars' : tx.type === 'deduct' ? 'Stars deducted' : 'Reward')
               return (
                 <div key={tx.id} className="bg-white rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm">
                   <span className="text-xl">{icon}</span>

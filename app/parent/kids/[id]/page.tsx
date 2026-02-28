@@ -70,18 +70,18 @@ export default function ParentKidPage({ params }: { params: { id: string } }) {
   }
 
   function getTxLabel(tx: Transaction): string {
-    if (tx.type === 'earn') {
+    if (tx.type === 'earn' || tx.type === 'deduct') {
       if (tx.actionId) {
         const action = store.actions.find(a => a.id === tx.actionId)
         return action ? action.name : 'Action completed'
       }
-      return tx.note || 'Bonus stars'
+      return tx.reason ?? tx.note ?? (tx.type === 'earn' ? 'Bonus stars' : 'Deduction')
     }
     if (tx.rewardId) {
       const reward = store.rewards.find(r => r.id === tx.rewardId)
       return reward ? `Redeemed: ${reward.name}` : 'Reward redeemed'
     }
-    return tx.note || 'Redemption'
+    return tx.note ?? 'Redemption'
   }
 
   function getCategoryEmoji(actionId: string): string {
@@ -218,9 +218,7 @@ export default function ParentKidPage({ params }: { params: { id: string } }) {
                   className={`flex items-center gap-3 px-4 py-3 ${i < visibleTxs.length - 1 ? 'border-b border-amber-50' : ''}`}
                 >
                   <span className="text-xl flex-shrink-0">
-                    {tx.type === 'earn'
-                      ? (tx.actionId ? getCategoryEmoji(tx.actionId) : '⭐')
-                      : '🎁'}
+                    {tx.type === 'redeem' ? '🎁' : (tx.actionId ? getCategoryEmoji(tx.actionId) : '⭐')}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-amber-900 text-sm truncate">{getTxLabel(tx)}</p>

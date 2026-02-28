@@ -1,6 +1,6 @@
 // ── Domain entity types ───────────────────────────────────────────────────────
 
-export type TransactionType = 'earn' | 'redeem'
+export type TransactionType = 'earn' | 'redeem' | 'deduct'
 export type TransactionStatus = 'approved' | 'pending' | 'denied'
 
 export interface Family {
@@ -18,6 +18,8 @@ export interface Kid {
   /** Hex color used as the kid's accent color */
   colorAccent: string
   createdAt: string
+  /** Reward IDs the kid has wishlisted (max 3) */
+  wishlist?: string[]
 }
 
 export interface Category {
@@ -34,8 +36,10 @@ export interface Action {
   name: string
   description: string
   categoryId: string
-  /** Points awarded on completion. Recommended range: 1–10 */
+  /** Points awarded (or deducted) on completion. Recommended range: 1–10 */
   pointsValue: number
+  /** If true, logging this action deducts points instead of adding */
+  isDeduction: boolean
   /** Optional badge automatically awarded on completion */
   badgeId?: string
   isTemplate: boolean
@@ -70,6 +74,8 @@ export interface Transaction {
   status: TransactionStatus
   timestamp: string
   note?: string
+  /** Recorded when the logged amount differs from the action's default, or for deductions */
+  reason?: string
 }
 
 export interface KidBadge {

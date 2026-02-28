@@ -311,6 +311,106 @@ screen.
 - Actions can now be worth up to 500 stars (for achievements), but rewards were capped at 100 stars via a slider. Inconsistency.
 - **Fix:** Rewards now use quick-pick chips (10, 20, 30, 50, 75, 100) plus a custom number input — uncapped, consistent with the actions pattern.
 
+---
+
+### Round 2 — Enhancement Batch (Feb 2026)
+
+#### Requests
+
+1. **Home tab — avatar switcher + embedded kid profile**
+2. **Actions tab — quick-log button per action**
+3. **Punishment actions — deduct points, color-coded, adjust+reason dialog**
+4. **Rewards tab — redemption stats, affordability color, per-kid wishlist**
+5. **Remove the floating FAB**
+
+---
+
+#### Design Decisions
+
+**F5 — Remove FAB**
+- The FAB (floating "+") was the primary log-action entry point but conflicts with the redesigned home tab (F1) and actions quick-log (F2), which together provide two clearer paths.
+- **Decision:** Remove `LogActionFab` from the parent layout entirely. No replacement FAB needed because:
+  - Home tab's embedded kid profile provides inline action logging
+  - Actions tab provides a "Log" button per action
+
+**F1 — Home Tab: Avatar Switcher + Embedded Kid Profile**
+- **Problem:** The home tab showed a list of kid cards (balance + links) with no useful action. Parents had to tap through to a separate page to log anything.
+- **Design:**
+  - Top of home: a horizontal scrollable row of kid avatars. Tapping one selects that kid (active = highlighted with accent color ring). Defaults to first kid on load.
+  - Below the avatar row: the selected kid's full profile view inline — star balance, "Log an action" list, "Redeem a reward" list, recent activity.
+  - Kid management (edit/delete) lives in a compact secondary control under each avatar (small pencil icon below avatar). This keeps the primary surface clean.
+  - Empty state (no kids): unchanged — prominent "Add a kid" CTA.
+  - The `/parent/kids/[id]` deep-link route is retained for compatibility but the home tab is the primary workspace.
+
+**F2 — Actions Tab: Quick Log Button**
+- Each active action card gets a "Log" button alongside Edit/Archive.
+- Tapping "Log" opens a confirmation dialog (shared with F3's design):
+  - Header: kid picker (if multiple kids, shown as avatar buttons; if 1 kid, skip picker)
+  - Amount row: default value pre-filled, subtle [−] / [+] buttons for adjustment
+  - Reason field: appears only if value was adjusted from default (optional text input)
+  - CTA: "Award X ⭐ to [Kid]" or "Deduct X ⭐ from [Kid]" (if punishment action)
+- Archived actions are not shown in the active list, so no log button needed there.
+
+**F3 — Punishment Actions**
+- **Data model changes:**
+  - `Action`: add `isDeduction: boolean` (default `false`)
+  - `Transaction.type`: expand from `'earn' | 'redeem'` to `'earn' | 'redeem' | 'deduct'`
+  - `Transaction`: add `reason?: string` (recorded when amount was adjusted or for audit)
+  - Balance calculation: `earn → +amount`, `redeem → −amount`, `deduct → −amount`
+- **UI:**
+  - Action form toggle: "⭐ Reward (earn points)" / "⚠️ Punishment (deduct points)"
+  - Active actions list: reward actions shown normally (amber/green); punishment actions shown with a red-tinted row and a "−" label.
+  - Log confirmation for punishments: red-tinted dialog, "Deduct X ⭐ from [Kid]" CTA with warning color.
+  - Balance can go negative (intentional — parent has full control).
+
+**F4 — Rewards Improvements**
+- **a. Redemption stats (parent rewards management tab):**
+  - Compute per-reward redemption count from transactions (`type === 'redeem' | 'deduct'` with matching `rewardId`).
+  - Show "Redeemed N×" badge on each reward card.
+  - "Days in a row" is deferred (requires streak calculation logic; out of scope for this batch).
+- **b. Affordability color (kid-facing views — home tab + /kids/[id]/rewards):**
+  - Rewards the selected kid can currently afford: amber/green highlight border.
+  - Unaffordable: normal (slightly dimmed). This replaces the current `opacity-55` approach.
+- **c. Per-kid Wishlist (kid-facing views):**
+  - **Data model:** `Kid` gains optional `wishlist?: string[]` (array of reward IDs, max 3).
+  - Context adds `addToWishlist(kidId, rewardId)` and `removeFromWishlist(kidId, rewardId)`.
+  - Reducer: reuse `UPDATE_KID` action (update kid's wishlist array).
+  - **Wishlist UI (kid-facing reward view):**
+    - If any wishes exist, a "My Wishlist" section renders at the top.
+    - Each wished reward shows: name, cost, progress bar (current stars / cost), and "Remove" link.
+    - Rewards section below: unaffordable rewards that are not yet wishlisted show "+ Add to wishlist" (disabled if 3 wishes already active).
+    - When a kid redeems a wishlisted reward, the app auto-removes it from the wishlist.
+  - Wishlist data is stored on the `Kid` entity in localStorage — persists across sessions.
+
+---
+
+#### Updated Data Model
+
+```
+Action       { id, familyId, name, description, categoryId, pointsValue,
+               isDeduction, badgeId?, isTemplate, isActive }
+Transaction  { id, kidId, type ('earn' | 'redeem' | 'deduct'), amount,
+               actionId?, rewardId?, status, timestamp, note?, reason? }
+Kid          { id, familyId, name, avatar, colorAccent, createdAt,
+               wishlist? }
+```
+
+---
+
+#### Implementation Order
+
+| # | Feature | Scope |
+|---|---------|-------|
+| F5 | Remove FAB | 1 file — layout only |
+| F1 | Home tab redesign | Rewrite parent/page.tsx |
+| F2 | Actions quick-log | Add log dialog to actions page |
+| F3 | Punishment actions | Data model + actions form + log dialog |
+| F4 | Rewards improvements | Data model + rewards page + kid rewards view |
+
+Each feature is built and manually verified before the next begins.
+
+---
+
 #### Observations for Future Iterations (v1.x / v2)
 
 - **Kid dashboard (/kids/[id]):** The recent activity feed only shows 5 entries and displays generic emoji (⭐/🎁). Enhance with category-specific icons and a "See all" link.
