@@ -1,12 +1,19 @@
-const CACHE = 'myk-v1'
+// Cache name is tied to the deploy version so each new deploy rotates the cache.
+const version = new URL(self.location.href).searchParams.get('v') ?? 'dev'
+const CACHE = `myk-${version}`
 
-// Cache the app shell on install
+// Cache the app shell on install — silently ignore network failures so the
+// SW still activates even if the device is offline during the first install.
 self.addEventListener('install', e => {
   self.skipWaiting()
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/', '/manifest.webmanifest'])))
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(['/', '/manifest.webmanifest']))
+      .catch(() => { /* offline during install — network-first will cover requests */ }),
+  )
 })
 
-// Delete old caches on activate
+// Delete caches from previous versions on activate
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()

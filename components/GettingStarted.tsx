@@ -35,8 +35,8 @@ export function GettingStarted({ store, onDismiss }: Props) {
     },
     {
       label: 'Add a kid',
-      hint: 'Go to More → Manage Kids to add your first child.',
-      href: '/parent/more',
+      hint: 'Tap below to add your first child.',
+      href: '/parent/kids',
       linkLabel: 'Manage Kids →',
       done: hasKid,
     },

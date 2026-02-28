@@ -5,15 +5,16 @@ import { useRouter } from 'next/navigation'
 import { useFamily } from '@/context/FamilyContext'
 
 export default function Home() {
-  const { store } = useFamily()
+  const { store, hydrated } = useFamily()
   const router = useRouter()
 
   useEffect(() => {
-    if (!store.family) {
-      router.replace('/setup')
-    }
-  }, [store.family, router])
+    if (hydrated && !store.family) router.replace('/setup')
+  }, [hydrated, store.family, router])
 
+  // Wait for localStorage hydration before deciding what to render.
+  // Without this, returning users see a blank flash before family data loads.
+  if (!hydrated) return null
   if (!store.family) return null
 
   return (
