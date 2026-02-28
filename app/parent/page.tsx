@@ -79,10 +79,13 @@ export default function ParentDashboard() {
     setShowKidForm(false)
   }
 
-  function handleLogAction(actionId: string, actionName: string) {
+  function handleLogAction(actionId: string) {
     if (!selectedKid) return
+    const action = store.actions.find(a => a.id === actionId)
+    if (!action) return
     logCompletion(selectedKid.id, actionId)
-    showFlash(`+stars! ${actionName}`)
+    const verb = action.isDeduction ? `−${action.pointsValue}⭐` : `+${action.pointsValue}⭐`
+    showFlash(`${verb} ${action.name}`)
   }
 
   function handleRedeemConfirm(rewardId: string) {
@@ -256,17 +259,23 @@ export default function ParentDashboard() {
                     {activeActions.map(action => (
                       <button
                         key={action.id}
-                        onClick={() => handleLogAction(action.id, action.name)}
-                        className="bg-white rounded-2xl p-3.5 shadow-sm flex items-center gap-3 text-left hover:bg-amber-50 active:scale-95 transition-all border-2 border-transparent hover:border-amber-200"
+                        onClick={() => handleLogAction(action.id)}
+                        className={`rounded-2xl p-3.5 shadow-sm flex items-center gap-3 text-left active:scale-95 transition-all border-2 border-transparent ${
+                          action.isDeduction
+                            ? 'bg-red-50 hover:bg-red-100 hover:border-red-200'
+                            : 'bg-white hover:bg-amber-50 hover:border-amber-200'
+                        }`}
                       >
                         <span className="text-xl w-8 text-center flex-shrink-0">{getCategoryEmoji(action.id)}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-amber-900 text-sm">{action.name}</p>
+                          <p className={`font-bold text-sm ${action.isDeduction ? 'text-red-700' : 'text-amber-900'}`}>{action.name}</p>
                           {action.description && (
                             <p className="text-amber-400 text-xs truncate">{action.description}</p>
                           )}
                         </div>
-                        <span className="font-black text-amber-500 text-sm flex-shrink-0">+{action.pointsValue}⭐</span>
+                        <span className={`font-black text-sm flex-shrink-0 ${action.isDeduction ? 'text-red-500' : 'text-amber-500'}`}>
+                          {action.isDeduction ? '−' : '+'}{action.pointsValue}⭐
+                        </span>
                       </button>
                     ))}
                   </div>
