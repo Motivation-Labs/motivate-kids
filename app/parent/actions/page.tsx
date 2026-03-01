@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useFamily } from '@/context/FamilyContext'
 import type { Action } from '@/types'
 import { fireStarConfetti } from '@/lib/confetti'
+import { randomEarnPhrase, randomDeductPhrase } from '@/lib/messages'
 
 const POINT_PRESETS = [1, 3, 5, 10, 25, 50, 100]
 
@@ -76,7 +77,7 @@ export default function ActionsPage() {
   }
 
   function handleSave() {
-    if (!draft.name.trim() || !draft.categoryId) return
+    if (!draft.name.trim()) return
     if (editing) {
       updateAction({ ...editing, ...draft })
     } else {
@@ -97,10 +98,13 @@ export default function ActionsPage() {
     const isAdjusted = logAmount !== logAction.pointsValue
     logCompletion(logKidId, logAction.id, logAmount, isAdjusted ? logReason || undefined : undefined)
     const kidName = store.kids.find(k => k.id === logKidId)?.name ?? ''
-    const verb = logAction.isDeduction ? '−' : '+'
-    setFlash(`${verb}${logAmount}⭐ logged for ${kidName}!`)
-    setTimeout(() => setFlash(null), 2500)
-    if (!logAction.isDeduction) fireStarConfetti()
+    if (logAction.isDeduction) {
+      setFlash(`−${logAmount}⭐ for ${kidName}. ${randomDeductPhrase()}`)
+    } else {
+      setFlash(`+${logAmount}⭐ for ${kidName}! ${randomEarnPhrase()}`)
+      fireStarConfetti()
+    }
+    setTimeout(() => setFlash(null), 3000)
     setLogAction(null)
     setLogKidId(null)
   }
@@ -376,27 +380,33 @@ export default function ActionsPage() {
 
             <input
               autoFocus
+              autoComplete="off"
+              autoCorrect="off"
               placeholder="Action name"
               value={draft.name}
               onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
               className="rounded-xl border-2 border-amber-200 px-3 py-2 text-amber-900 outline-none focus:border-amber-400"
             />
             <input
+              autoComplete="off"
               placeholder="Description (optional)"
               value={draft.description}
               onChange={e => setDraft(d => ({ ...d, description: e.target.value }))}
               className="rounded-xl border-2 border-amber-200 px-3 py-2 text-amber-900 outline-none focus:border-amber-400"
             />
-            <select
-              value={draft.categoryId}
-              onChange={e => setDraft(d => ({ ...d, categoryId: e.target.value }))}
-              className="rounded-xl border-2 border-amber-200 px-3 py-2 text-amber-900 bg-white outline-none focus:border-amber-400"
-            >
-              <option value="">Select category…</option>
-              {store.categories.map(c => (
-                <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
-              ))}
-            </select>
+            <div>
+              <label className="text-xs text-amber-400 font-medium ml-1 mb-1 block">Category (optional)</label>
+              <select
+                value={draft.categoryId}
+                onChange={e => setDraft(d => ({ ...d, categoryId: e.target.value }))}
+                className="w-full rounded-xl border-2 border-amber-100 px-3 py-2 text-amber-700 bg-white outline-none focus:border-amber-300"
+              >
+                <option value="">No category</option>
+                {store.categories.map(c => (
+                  <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                ))}
+              </select>
+            </div>
             <div className="flex flex-col gap-2">
               <div className="flex items-baseline justify-between">
                 <label className="text-sm font-medium text-amber-700">
@@ -434,7 +444,7 @@ export default function ActionsPage() {
             </div>
             <button
               onClick={handleSave}
-              disabled={!draft.name.trim() || !draft.categoryId}
+              disabled={!draft.name.trim()}
               className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold transition-colors"
             >
               {editing ? 'Save changes' : 'Add action'}

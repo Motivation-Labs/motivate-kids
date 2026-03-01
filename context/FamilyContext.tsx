@@ -52,6 +52,7 @@ type StoreAction =
   | { type: 'UPDATE_CATEGORY'; payload: Category }
   | { type: 'REMOVE_CATEGORY'; payload: string }
   | { type: 'ADD_TRANSACTION'; payload: Transaction }
+  | { type: 'REMOVE_TRANSACTION'; payload: string }
   | { type: 'APPROVE_REDEMPTION'; payload: string }
   | { type: 'DENY_REDEMPTION'; payload: string }
   | { type: 'AWARD_BADGE'; payload: KidBadge }
@@ -149,6 +150,9 @@ function reducer(state: AppStore, action: StoreAction): AppStore {
     case 'ADD_TRANSACTION':
       return { ...state, transactions: [...state.transactions, action.payload] }
 
+    case 'REMOVE_TRANSACTION':
+      return { ...state, transactions: state.transactions.filter(t => t.id !== action.payload) }
+
     case 'APPROVE_REDEMPTION':
       return {
         ...state,
@@ -213,10 +217,12 @@ interface FamilyContextValue {
   // Transactions
   logCompletion: (kidId: string, actionId: string, amount?: number, reason?: string) => void
   awardBonus: (kidId: string, amount: number, note: string) => void
+  awardDeduction: (kidId: string, amount: number, reason?: string) => void
   redeemReward: (kidId: string, rewardId: string) => void
   requestRedemption: (kidId: string, rewardId: string) => void
   approveRedemption: (transactionId: string) => void
   denyRedemption: (transactionId: string) => void
+  removeTransaction: (id: string) => void
 
   // Kid badges
   awardBadge: (kidId: string, badgeId: string) => void
@@ -429,6 +435,23 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'ADD_TRANSACTION', payload: tx })
   }, [])
 
+  const awardDeduction = useCallback((kidId: string, amount: number, reason?: string) => {
+    const tx: Transaction = {
+      id: generateId(),
+      kidId,
+      type: 'deduct',
+      amount,
+      status: 'approved',
+      timestamp: new Date().toISOString(),
+      reason,
+    }
+    dispatch({ type: 'ADD_TRANSACTION', payload: tx })
+  }, [])
+
+  const removeTransaction = useCallback((id: string) => {
+    dispatch({ type: 'REMOVE_TRANSACTION', payload: id })
+  }, [])
+
   const redeemReward = useCallback(
     (kidId: string, rewardId: string) => {
       const reward = store.rewards.find(r => r.id === rewardId)
@@ -533,10 +556,12 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     removeCategory,
     logCompletion,
     awardBonus,
+    awardDeduction,
     redeemReward,
     requestRedemption,
     approveRedemption,
     denyRedemption,
+    removeTransaction,
     awardBadge,
     getBalance,
     getPendingCount,
