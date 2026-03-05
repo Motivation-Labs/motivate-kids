@@ -74,6 +74,10 @@ export default function ParentDashboard() {
   const [redeemRewardId, setRedeemRewardId] = useState<string | null>(null)
   const [redeemCost, setRedeemCost] = useState(0)
 
+  // View more in sheet
+  const [showAllActions, setShowAllActions] = useState(false)
+  const [showAllRewards, setShowAllRewards] = useState(false)
+
   // Undo delete
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const pendingDeleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -127,6 +131,28 @@ export default function ParentDashboard() {
 
   const groups = useMemo(() => groupByDate(displayedTxs, t, t), [displayedTxs, t])
 
+  const actionLastUsed = useMemo(() => {
+    const map: Record<string, number> = {}
+    store.transactions.forEach(tx => {
+      if ((tx.type === 'earn' || tx.type === 'deduct') && tx.actionId) {
+        const ts = new Date(tx.timestamp).getTime()
+        if (!map[tx.actionId] || ts > map[tx.actionId]) map[tx.actionId] = ts
+      }
+    })
+    return map
+  }, [store.transactions])
+
+  const rewardLastUsed = useMemo(() => {
+    const map: Record<string, number> = {}
+    store.transactions.forEach(tx => {
+      if (tx.type === 'redeem' && tx.rewardId) {
+        const ts = new Date(tx.timestamp).getTime()
+        if (!map[tx.rewardId] || ts > map[tx.rewardId]) map[tx.rewardId] = ts
+      }
+    })
+    return map
+  }, [store.transactions])
+
   if (!hydrated || !store.family) return null
 
   function showFlash(msg: string) {
@@ -159,6 +185,8 @@ export default function ParentDashboard() {
     setCreateName('')
     setCreatePoints(5)
     setRedeemRewardId(null)
+    setShowAllActions(false)
+    setShowAllRewards(false)
   }
 
   function handleSelectAction(actionId: string) {
@@ -247,9 +275,20 @@ export default function ParentDashboard() {
   const deductActions = store.actions.filter(a => a.isActive && a.isDeduction)
   const activeRewards = store.rewards.filter(r => r.isActive !== false)
 
+  const sortedRewards = [...activeRewards].sort(
+    (a, b) => (rewardLastUsed[b.id] ?? 0) - (rewardLastUsed[a.id] ?? 0)
+  )
+  const displayedRewards = showAllRewards ? sortedRewards : sortedRewards.slice(0, 3)
+  const hasMoreRewards = sortedRewards.length > 3
+
   const quickKid = quickKidId ? store.kids.find(k => k.id === quickKidId) : null
   const isEarnOrDeduct = quickType === 'earn' || quickType === 'deduct'
   const relevantActions = quickType === 'earn' ? earnActions : deductActions
+  const sortedRelevantActions = [...relevantActions].sort(
+    (a, b) => (actionLastUsed[b.id] ?? 0) - (actionLastUsed[a.id] ?? 0)
+  )
+  const displayedActions = showAllActions ? sortedRelevantActions : sortedRelevantActions.slice(0, 3)
+  const hasMoreActions = sortedRelevantActions.length > 3
   const kidBalance = quickKidId ? getBalance(quickKidId) : 0
   const kidTxs = quickKidId
     ? getTransactions(quickKidId)
@@ -488,10 +527,10 @@ export default function ParentDashboard() {
 
                   {/* Action list */}
                   <div className="flex flex-col gap-1.5">
-                    {relevantActions.length === 0 && (
+                    {sortedRelevantActions.length === 0 && (
                       <p className="text-ink-muted text-sm text-center py-2">{t('quick.no-actions')}</p>
                     )}
-                    {relevantActions.map(action => {
+                    {displayedActions.map(action => {
                       const icon = store.categories.find(c => c.id === action.categoryId)?.icon ?? (action.isDeduction ? '⚠️' : '⭐')
                       const chosen = quickActionId === action.id
                       return (
@@ -513,6 +552,14 @@ export default function ParentDashboard() {
                         </button>
                       )
                     })}
+                    {!showAllActions && hasMoreActions && (
+                      <button
+                        onClick={() => setShowAllActions(true)}
+                        className="text-center text-brand text-sm font-medium py-1.5 hover:text-brand-hover transition-colors"
+                      >
+                        View {sortedRelevantActions.length - 3} more →
+                      </button>
+                    )}
 
                     {/* No action (custom) */}
                     <button
@@ -603,31 +650,41 @@ export default function ParentDashboard() {
                   <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1">
                     {t('quick.choose-reward')}
                   </p>
-                  {activeRewards.length === 0 ? (
+                  {sortedRewards.length === 0 ? (
                     <p className="text-ink-muted text-sm text-center py-4">{t('quick.no-rewards')}</p>
                   ) : (
-                    activeRewards.map(reward => {
-                      const canAfford = kidBalance >= reward.pointsCost
-                      return (
+                    <>
+                      {displayedRewards.map(reward => {
+                        const canAfford = kidBalance >= reward.pointsCost
+                        return (
+                          <button
+                            key={reward.id}
+                            onClick={() => handleRedeemTap(reward.id)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                              canAfford
+                                ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 active:scale-95'
+                                : 'border-line-subtle bg-white opacity-60'
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-ink-primary truncate">{reward.name}</p>
+                              <p className="text-xs text-ink-muted">{reward.pointsCost}⭐ cost</p>
+                            </div>
+                            <span className={`text-xs font-bold flex-shrink-0 ${canAfford ? 'text-emerald-600' : 'text-ink-muted'}`}>
+                              {canAfford ? '→' : `−${reward.pointsCost - kidBalance}⭐`}
+                            </span>
+                          </button>
+                        )
+                      })}
+                      {!showAllRewards && hasMoreRewards && (
                         <button
-                          key={reward.id}
-                          onClick={() => handleRedeemTap(reward.id)}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
-                            canAfford
-                              ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 active:scale-95'
-                              : 'border-line-subtle bg-white opacity-60'
-                          }`}
+                          onClick={() => setShowAllRewards(true)}
+                          className="text-center text-brand text-sm font-medium py-1.5 hover:text-brand-hover transition-colors"
                         >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-ink-primary truncate">{reward.name}</p>
-                            <p className="text-xs text-ink-muted">{reward.pointsCost}⭐ cost</p>
-                          </div>
-                          <span className={`text-xs font-bold flex-shrink-0 ${canAfford ? 'text-emerald-600' : 'text-ink-muted'}`}>
-                            {canAfford ? '→' : `−${reward.pointsCost - kidBalance}⭐`}
-                          </span>
+                          View {sortedRewards.length - 3} more →
                         </button>
-                      )
-                    })
+                      )}
+                    </>
                   )}
                 </div>
               )}

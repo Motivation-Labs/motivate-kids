@@ -26,6 +26,7 @@ export default function ActionsPage() {
   const [editing, setEditing] = useState<Action | null>(null)
   const [draft, setDraft] = useState(EMPTY)
   const [sort, setSort] = useState<SortKey>('default')
+  const [search, setSearch] = useState('')
 
   // Quick-log modal state
   const [logAction, setLogAction] = useState<Action | null>(null)
@@ -49,7 +50,13 @@ export default function ActionsPage() {
   const archived = store.actions.filter(a => !a.isActive)
 
   const sorted = useMemo(() => {
-    const list = [...active]
+    const q = search.toLowerCase().trim()
+    const list = q
+      ? active.filter(a =>
+          a.name.toLowerCase().includes(q) ||
+          (a.description && a.description.toLowerCase().includes(q))
+        )
+      : [...active]
     if (sort === 'most-used') {
       list.sort((a, b) => (completionCounts[b.id] ?? 0) - (completionCounts[a.id] ?? 0))
     } else if (sort === 'category') {
@@ -62,7 +69,7 @@ export default function ActionsPage() {
       list.sort((a, b) => b.pointsValue - a.pointsValue)
     }
     return list
-  }, [active, sort, completionCounts, store.categories])
+  }, [active, sort, search, completionCounts, store.categories])
 
   function openNew() {
     setEditing(null)
@@ -135,6 +142,26 @@ export default function ActionsPage() {
           + New
         </button>
       </header>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted text-sm pointer-events-none">🔍</span>
+        <input
+          type="text"
+          placeholder="Search actions..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full rounded-xl border-2 border-line pl-9 pr-8 py-2 text-sm text-ink-primary outline-none focus:border-brand"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary text-sm"
+          >
+            ✕
+          </button>
+        )}
+      </div>
 
       {/* Sort controls */}
       {active.length > 1 && (

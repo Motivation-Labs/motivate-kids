@@ -20,8 +20,15 @@ export default function RewardsPage() {
   const [draft, setDraft] = useState(EMPTY)
   const [redeemFor, setRedeemFor] = useState<Reward | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
-  const active = store.rewards.filter(r => r.isActive)
+  const active = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    return store.rewards.filter(r =>
+      r.isActive &&
+      (!q || r.name.toLowerCase().includes(q) || (r.description && r.description.toLowerCase().includes(q)))
+    )
+  }, [store.rewards, search])
   const inactive = store.rewards.filter(r => !r.isActive)
 
   // Redemption count per reward (approved only)
@@ -85,6 +92,26 @@ export default function RewardsPage() {
           + New
         </button>
       </header>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted text-sm pointer-events-none">🔍</span>
+        <input
+          type="text"
+          placeholder="Search rewards..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full rounded-xl border-2 border-line pl-9 pr-8 py-2 text-sm text-ink-primary outline-none focus:border-brand"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink-secondary text-sm"
+          >
+            ✕
+          </button>
+        )}
+      </div>
 
       {/* Flash */}
       {flash && (
