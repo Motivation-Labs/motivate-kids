@@ -30,6 +30,8 @@ export default function InvitePage() {
   )
 }
 
+type AuthMethod = 'password' | 'magic-link'
+
 function InviteFlow() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -44,11 +46,13 @@ function InviteFlow() {
   const [relationship, setRelationship] = useState<MemberRelationship>('mother')
   const [submitting, setSubmitting] = useState(false)
 
-  // Auth form state (for users who need to sign up)
+  // Auth form state
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup')
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('magic-link')
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
 
   useEffect(() => {
     if (!token) {
@@ -95,6 +99,26 @@ function InviteFlow() {
     const supabase = createClient()
 
     if (authMode === 'signup') {
+      if (authMethod === 'magic-link') {
+        // Magic link signup — no password needed
+        const { error: authError } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            data: { display_name: displayName },
+            emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(`/invite?token=${token}`)}`,
+          },
+        })
+        if (authError) {
+          setError(authError.message)
+          setSubmitting(false)
+          return
+        }
+        setMagicLinkSent(true)
+        setSubmitting(false)
+        return
+      }
+
+      // Password signup
       const { error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -108,8 +132,6 @@ function InviteFlow() {
         setSubmitting(false)
         return
       }
-      // For email confirmation flow, user needs to check email
-      // For instant signup (if email confirm disabled), proceed
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setStep('configure')
@@ -117,6 +139,19 @@ function InviteFlow() {
         setError('Check your email to confirm your account, then come back to this link.')
       }
     } else {
+      // Login
+      if (authMethod === 'magic-link') {
+        const { error: authError } = await supabase.auth.signInWithOtp({ email })
+        if (authError) {
+          setError(authError.message)
+          setSubmitting(false)
+          return
+        }
+        setMagicLinkSent(true)
+        setSubmitting(false)
+        return
+      }
+
       const { error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -154,7 +189,6 @@ function InviteFlow() {
       return
     }
 
-    // Redirect to parent dashboard
     router.push('/parent')
   }
 
@@ -193,6 +227,29 @@ function InviteFlow() {
   const familyName = invite?.families?.name || 'a family'
 
   if (step === 'auth') {
+    if (magicLinkSent) {
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-[#58CC02] to-[#46A302] flex flex-col items-center justify-center px-6">
+          <div className="w-full max-w-sm text-center">
+            <p className="text-5xl mb-4">✨</p>
+            <h1 className="text-2xl font-extrabold text-white font-[Nunito]">
+              Check your email!
+            </h1>
+            <p className="text-white/80 mt-2 font-[Nunito] font-semibold text-sm leading-relaxed">
+              We sent a {authMode === 'signup' ? 'sign-up' : 'login'} link to <strong>{email}</strong>.
+              Click it to join <strong>{familyName}</strong>!
+            </p>
+            <button
+              onClick={() => { setMagicLinkSent(false); setError('') }}
+              className="mt-6 text-white/70 font-[Nunito] font-semibold text-sm underline"
+            >
+              ← Use a different email
+            </button>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#58CC02] to-[#46A302] flex flex-col items-center justify-center px-6">
         <div className="w-full max-w-sm">
@@ -236,6 +293,28 @@ function InviteFlow() {
             <div className="flex-1 h-px bg-white/30" />
           </div>
 
+          {/* Auth method toggle */}
+          <div className="flex rounded-xl overflow-hidden border-2 border-white/30 mb-4">
+            <button
+              type="button"
+              onClick={() => { setAuthMethod('magic-link'); setError('') }}
+              className={`flex-1 py-2.5 text-sm font-bold font-[Nunito] transition-colors ${
+                authMethod === 'magic-link' ? 'bg-white text-[#58CC02]' : 'text-white/80 hover:bg-white/10'
+              }`}
+            >
+              Magic Link
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthMethod('password'); setError('') }}
+              className={`flex-1 py-2.5 text-sm font-bold font-[Nunito] transition-colors ${
+                authMethod === 'password' ? 'bg-white text-[#58CC02]' : 'text-white/80 hover:bg-white/10'
+              }`}
+            >
+              Password
+            </button>
+          </div>
+
           <form onSubmit={handleAuth} className="space-y-4">
             {authMode === 'signup' && (
               <input
@@ -255,15 +334,17 @@ function InviteFlow() {
               required
               className="w-full h-12 px-4 rounded-2xl bg-white text-[#3C3C3C] font-[Nunito] font-semibold placeholder:text-gray-400 outline-none"
             />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full h-12 px-4 rounded-2xl bg-white text-[#3C3C3C] font-[Nunito] font-semibold placeholder:text-gray-400 outline-none"
-            />
+            {authMethod === 'password' && (
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full h-12 px-4 rounded-2xl bg-white text-[#3C3C3C] font-[Nunito] font-semibold placeholder:text-gray-400 outline-none"
+              />
+            )}
 
             {error && (
               <p className="text-red-200 text-sm font-[Nunito] font-semibold text-center">
@@ -278,12 +359,18 @@ function InviteFlow() {
             >
               {submitting
                 ? 'Please wait...'
-                : authMode === 'signup'
-                  ? 'Sign Up & Join'
-                  : 'Log In & Join'
+                : authMethod === 'magic-link'
+                  ? (authMode === 'signup' ? 'Send Magic Link' : 'Send Login Link')
+                  : (authMode === 'signup' ? 'Sign Up & Join' : 'Log In & Join')
               }
             </button>
           </form>
+
+          {authMethod === 'magic-link' && (
+            <p className="text-white/60 text-xs font-[Nunito] font-semibold text-center mt-2">
+              No password needed — just click the link in your email
+            </p>
+          )}
 
           <p className="text-center mt-5 text-white/80 font-[Nunito] font-semibold text-sm">
             {authMode === 'signup' ? (
