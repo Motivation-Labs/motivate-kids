@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useFamily } from '@/context/FamilyContext'
+import { AvatarDisplay } from '@/components/AvatarDisplay'
 
 export default function KidDashboard({ params }: { params: { id: string } }) {
   const { id } = params
@@ -30,7 +31,7 @@ export default function KidDashboard({ params }: { params: { id: string } }) {
       {/* Header */}
       <header className="flex items-center justify-between pt-6 mb-8">
         <div className="flex items-center gap-3">
-          <span className="text-5xl">{kid.avatar}</span>
+          <AvatarDisplay avatar={kid.avatar} size={56} frame={kid.avatarFrame} />
           <h1 className="text-2xl font-bold text-ink-primary">{kid.name}</h1>
         </div>
         <button onClick={() => router.push('/')} className="text-sm text-ink-muted underline">
@@ -92,14 +93,18 @@ export default function KidDashboard({ params }: { params: { id: string } }) {
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {recentTxs.map(tx => {
+            {recentTxs.map((tx, i) => {
               const action = tx.actionId ? store.actions.find(a => a.id === tx.actionId) : null
               const reward = tx.rewardId ? store.rewards.find(r => r.id === tx.rewardId) : null
               const isEarn = tx.type === 'earn'
               const icon = isEarn ? getCategoryIcon(tx.actionId) : '🎁'
               const label = action?.name ?? reward?.name ?? tx.reason ?? tx.note ?? (isEarn ? 'Bonus stars' : tx.type === 'deduct' ? 'Stars deducted' : 'Reward')
               return (
-                <div key={tx.id} className="bg-white rounded-xl px-4 py-3 flex items-center gap-3 shadow-card">
+                <div
+                  key={tx.id}
+                  className="bg-white rounded-xl px-4 py-3 flex items-center gap-3 shadow-card animate-slide-up"
+                  style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'both' }}
+                >
                   <span className="text-xl">{icon}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-ink-primary truncate">{label}</p>

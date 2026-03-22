@@ -20,6 +20,8 @@ export interface Kid {
   createdAt: string
   /** Reward IDs the kid has wishlisted (max 3) */
   wishlist?: string[]
+  /** Decorative frame around avatar (e.g., "stars", "crown", "rainbow") */
+  avatarFrame?: string
 }
 
 export interface Category {
@@ -76,12 +78,37 @@ export interface Transaction {
   note?: string
   /** Recorded when the logged amount differs from the action's default, or for deductions */
   reason?: string
+  /** Base64 data URL of an attached photo */
+  photoUrl?: string
+  /** Base64 data URL of an attached voice memo (max 10s) */
+  voiceMemoUrl?: string
 }
 
 export interface KidBadge {
   kidId: string
   badgeId: string
   awardedAt: string
+}
+
+export type FamilyRole = 'mother' | 'father' | 'grandma' | 'grandpa' | 'aunt' | 'uncle' | 'nanny' | 'other'
+
+export interface FamilyMember {
+  id: string
+  familyId: string
+  name: string
+  avatar: string
+  role: FamilyRole
+  birthday?: string
+  createdAt: string
+}
+
+export interface FamilyInvite {
+  id: string
+  familyId: string
+  token: string
+  role: FamilyRole
+  createdAt: string
+  expiresAt: string
 }
 
 // ── Persisted store shape ─────────────────────────────────────────────────────
@@ -95,4 +122,6 @@ export interface AppStore {
   rewards: Reward[]
   transactions: Transaction[]
   kidBadges: KidBadge[]
+  familyMembers: FamilyMember[]
+  familyInvites: FamilyInvite[]
 }

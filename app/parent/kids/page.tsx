@@ -4,13 +4,14 @@ import { useState } from 'react'
 import { useFamily } from '@/context/FamilyContext'
 import { AvatarDisplay } from '@/components/AvatarDisplay'
 import { AvatarPicker } from '@/components/AvatarPicker'
+import { FramePicker } from '@/components/FramePicker'
 import type { Kid } from '@/types'
 
 const COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316']
-const EMPTY = { name: '', avatar: '🧒', colorAccent: COLORS[0] }
+const EMPTY = { name: '', avatar: '🧒', colorAccent: COLORS[0], avatarFrame: 'none' }
 
 export default function KidsPage() {
-  const { store, addKid, updateKid, removeKid, getBalance } = useFamily()
+  const { store, addKid, updateKid, removeKid, getBalance, getLifetimeStars } = useFamily()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Kid | null>(null)
   const [draft, setDraft] = useState(EMPTY)
@@ -23,7 +24,7 @@ export default function KidsPage() {
 
   function openEdit(kid: Kid) {
     setEditing(kid)
-    setDraft({ name: kid.name, avatar: kid.avatar, colorAccent: kid.colorAccent })
+    setDraft({ name: kid.name, avatar: kid.avatar, colorAccent: kid.colorAccent, avatarFrame: kid.avatarFrame ?? 'none' })
     setShowForm(true)
   }
 
@@ -63,7 +64,7 @@ export default function KidsPage() {
             className="bg-white rounded-2xl p-4 shadow-card border-l-4 flex items-center gap-4"
             style={{ borderColor: kid.colorAccent }}
           >
-            <AvatarDisplay avatar={kid.avatar} size={48} />
+            <AvatarDisplay avatar={kid.avatar} size={48} frame={kid.avatarFrame} />
             <div className="flex-1">
               <p className="font-bold text-ink-primary">{kid.name}</p>
               <p className="text-brand text-sm">⭐ {getBalance(kid.id)} stars</p>
@@ -104,7 +105,16 @@ export default function KidsPage() {
               <AvatarPicker
                 value={draft.avatar}
                 onChange={avatar => setDraft(d => ({ ...d, avatar }))}
-                uploadPrefix="kids"
+              />
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-ink-secondary mb-2">Avatar Frame</p>
+              <FramePicker
+                avatar={draft.avatar}
+                value={draft.avatarFrame}
+                onChange={avatarFrame => setDraft(d => ({ ...d, avatarFrame }))}
+                lifetimeStars={editing ? getLifetimeStars(editing.id) : 0}
               />
             </div>
 

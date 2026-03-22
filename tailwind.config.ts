@@ -101,6 +101,33 @@ const config: Config = {
   				'0%': { transform: 'translateY(100%)' },
   				'100%': { transform: 'translateY(0)' },
   			},
+  			'float-up': {
+  				'0%': { opacity: '1', transform: 'translateY(0)' },
+  				'100%': { opacity: '0', transform: 'translateY(-40px)' },
+  			},
+  			'float-down': {
+  				'0%': { opacity: '1', transform: 'translateY(0)' },
+  				'100%': { opacity: '0', transform: 'translateY(20px)' },
+  			},
+  			'star-earn': {
+  				'0%': { transform: 'scale(1)' },
+  				'30%': { transform: 'scale(1.3)' },
+  				'100%': { transform: 'scale(1)' },
+  			},
+  			'star-deduct': {
+  				'0%': { transform: 'scale(1)' },
+  				'30%': { transform: 'scale(0.85)' },
+  				'100%': { transform: 'scale(1)' },
+  			},
+  			'gift-burst': {
+  				'0%': { opacity: '1', transform: 'scale(0.5)' },
+  				'50%': { opacity: '1', transform: 'scale(1.3)' },
+  				'100%': { opacity: '0', transform: 'scale(1.8)' },
+  			},
+  			'rainbow-spin': {
+  				'0%': { '--rainbow-angle': '0deg' },
+  				'100%': { '--rainbow-angle': '360deg' },
+  			},
   		},
   		animation: {
   			'slide-down': 'slide-down 0.3s ease-out',
@@ -108,6 +135,11 @@ const config: Config = {
   			'bounce-in': 'bounce-in 0.4s ease-out',
   			'star-pulse': 'star-pulse 0.3s ease-in-out',
   			'sheet-up': 'sheet-up 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+  			'float-up': 'float-up 0.8s ease-out forwards',
+  			'float-down': 'float-down 0.6s ease-out forwards',
+  			'star-earn': 'star-earn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+  			'star-deduct': 'star-deduct 0.4s ease-out',
+  			'gift-burst': 'gift-burst 0.8s ease-out forwards',
   		},
   	}
   },

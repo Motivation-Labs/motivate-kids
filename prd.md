@@ -806,3 +806,433 @@ Preparing the app for external distribution to the parent focus group. Covers au
 | 2 | FB-12 | Settings page + Supabase queries |
 | 3 | FB-13 | New components + Supabase Storage + avatar migration |
 | 4 | FB-14 | lib/sounds.ts + CSS animations + settings toggle |
+
+---
+
+### Round 7 — Emotional Engagement & Delight (Mar 2026)
+
+Building deeper emotional connection for kids (ages 4–8) through a virtual companion, richer animation feedback loops, and family avatar decoration effects.
+
+---
+
+#### FB-15 · Virtual Companion (Plant or Animal)  *(High priority)*
+
+> A living creature on the kid dashboard that **grows** as the kid earns stars and **wilts / looks sad** when punishments happen. This gives kids an emotional anchor — they are not just collecting numbers, they are caring for something.
+
+**Concept:**
+- Each kid gets a virtual companion displayed prominently on their dashboard.
+- The companion has **mood states** driven by recent activity:
+  - **Happy / thriving:** Recent earn transactions → companion blooms, bounces, sparkles.
+  - **Sad / wilting:** Recent deduct transactions → companion droops, loses color, shows a tear.
+  - **Neutral / resting:** No recent activity → calm idle animation.
+- The companion **evolves** through growth stages as the kid accumulates lifetime stars:
+  - Stage 1 (0–50 stars): Seed / egg / baby
+  - Stage 2 (51–200 stars): Sprout / hatchling
+  - Stage 3 (201–500 stars): Young plant / juvenile
+  - Stage 4 (501–1000 stars): Blooming / adolescent
+  - Stage 5 (1001+ stars): Full bloom / adult with decorations
+- Growth is based on **lifetime earned stars** (not current balance), so redeeming rewards does not cause regression.
+
+**Companion types (parent chooses during kid setup or kid picks):**
+- 🌱 Plant line: seed → sprout → sapling → flowering tree → grand tree with fruit
+- 🐣 Animal line: egg → chick → young bird → colorful bird → phoenix-like bird with sparkles
+- More types can be added later (ocean creature, dragon, etc.)
+
+**Data model additions:**
+```
+Kid  { ..., companionType?: 'plant' | 'animal', companionStage?: number }
+```
+- `companionStage` is computed from lifetime earned stars but cached for performance.
+- Mood is computed client-side from the last 3 transactions (no new field needed).
+
+**UI placement:**
+- Kid dashboard: companion occupies a prominent card between the star balance and badges section.
+- Companion animates continuously (idle loop) with mood-specific variations.
+- Tapping the companion triggers a small interaction animation (bounce, hearts, etc.).
+
+**Animation requirements:**
+- Each growth stage has a distinct SVG/Lottie illustration.
+- Transitions between stages play a celebratory evolution animation.
+- Mood changes animate smoothly (e.g., plant wilting over 0.5s, not instant).
+
+---
+
+#### FB-16 · Animation Feedback Loop Enhancement  *(High priority)*
+
+> Animation is the primary language for kids aged 4–8. Every meaningful action should have a visible, delightful reaction — not just a toast message.
+
+**Requirements:**
+
+**a) Earn stars — celebration cascade:**
+- Existing confetti + sound retained.
+- Add: star count does an exaggerated bounce-scale animation (1.0 → 1.4 → 1.0).
+- Add: companion reacts — happy bounce, sparkle particles around it.
+- Add: earned amount floats up from the action button as "+5 ⭐" with fade-out.
+- Duration: ~1.5s total cascade.
+
+**b) Deduct stars — gentle consequence feedback:**
+- Star count shrinks briefly (1.0 → 0.85 → 1.0) with a subtle red flash on the number.
+- Companion reacts — droops, single tear drop animation, color desaturation.
+- Deducted amount floats down as "−3 ⭐" in muted red with fade-out.
+- No confetti, no celebratory sound — the existing soft descending tone plays.
+- Duration: ~1.2s.
+
+**c) Redeem reward — achievement moment:**
+- Gift emoji burst (🎁) animation around the reward card.
+- Star count does a smooth count-down animation (numerically ticking from old to new value).
+- Companion does a proud/excited animation.
+- Celebratory bell sound plays.
+
+**d) Growth stage evolution — milestone moment:**
+- Full-screen overlay with particle effects.
+- Old stage fades/shrinks, new stage grows in with spring animation.
+- Congratulatory message: "Your [companion] evolved!" with sparkle text.
+- Sound: ascending fanfare (new sound, 2s).
+- This is the highest-impact animation in the app — should feel like a true achievement.
+
+**e) Badge earned:**
+- Badge icon flies from off-screen to the badge wall position.
+- Shimmer effect on the new badge for 3s.
+- Companion reacts with a happy animation.
+
+**Technical approach:**
+- CSS keyframe animations for simple transforms (bounce, scale, fade).
+- Framer Motion for orchestrated sequences (earn cascade, evolution overlay).
+- Lottie for companion illustrations (lightweight, vector-based, loopable).
+- All animations respect `prefers-reduced-motion` media query.
+
+---
+
+#### FB-17 · Family Avatar Decoration Effects  *(Medium priority)*
+
+> Family member avatars (parent and kid) should feel expressive and customizable — decorations and effects make them personal and fun.
+
+**Requirements:**
+
+**a) Avatar frames / borders:**
+- Selectable decorative frames around avatars: crown, stars, hearts, flowers, lightning, rainbow ring.
+- Frames are SVG overlays rendered on top of the circular avatar.
+- Parents choose frames for kids during profile setup; kids can browse and request changes.
+- Frames can be earned as rewards (e.g., "unlock the crown frame for 100 ⭐").
+
+**b) Avatar status effects:**
+- Animated effects that play on the avatar based on state:
+  - Sparkle particles: when the kid recently earned stars (last 30 min).
+  - Glow ring: when the kid leveled up their companion recently.
+  - Celebration burst: on the home page when the kid's companion just evolved.
+- Effects are subtle and non-distracting — small particles, soft glow, no flashing.
+
+**c) Avatar mood indicator:**
+- Small emoji overlay on the avatar corner showing companion mood: 😊 (happy), 😢 (sad), 😴 (neutral/idle).
+- Synced with companion mood state from FB-15.
+
+**Data model additions:**
+```
+Kid  { ..., avatarFrame?: string }
+```
+- `avatarFrame` stores the selected frame ID (e.g., `"crown"`, `"stars"`, `"rainbow"`).
+- Status effects and mood indicators are computed client-side — no persistence needed.
+
+**Available frames (v1):**
+| ID | Visual | Unlock |
+|----|--------|--------|
+| `none` | No frame (default) | Free |
+| `stars` | Rotating star ring | Free |
+| `hearts` | Heart border | 50 ⭐ |
+| `crown` | Golden crown on top | 100 ⭐ |
+| `flowers` | Floral wreath | 75 ⭐ |
+| `rainbow` | Rainbow ring | 150 ⭐ |
+| `lightning` | Electric sparks | 200 ⭐ |
+
+---
+
+#### Priority Matrix (Round 7)
+
+| ID | Feature | Priority | Effort | Target |
+|----|---------|----------|--------|--------|
+| FB-15 | Virtual companion | High | L | v0.4.0 |
+| FB-16 | Animation feedback loop | High | M | v0.4.0 |
+| FB-17 | Avatar decoration effects | Medium | M | v0.4.0 |
+
+#### Implementation Order
+
+| # | Feature | Scope |
+|---|---------|-------|
+| 1 | FB-15 | Data model + companion component + dashboard integration |
+| 2 | FB-16 | Animation system + earn/deduct/redeem/evolution cascades |
+| 3 | FB-17 | Avatar frames + status effects + mood indicator |
+
+#### Design Dependencies
+
+- Companion illustrations (plant stages × moods, animal stages × moods) — need SVG or Lottie assets.
+- Avatar frame SVGs — 7 decorative frame designs.
+- All visual assets to be designed in the `.pen` design file or sourced from Figma before implementation.
+
+---
+
+### Round 9 — Account Setup & Auth (Mar 2026)
+
+Email + password authentication with OTP email verification and a connected family creation wizard.
+
+---
+
+#### Auth Flow (implemented)
+
+```
+/signup              Email + password form (phone tab visible but disabled)
+  ↓ signUp()         Supabase creates account, sends confirmation email with OTP
+/signup/verify       User enters 6-digit code from email
+  ↓ verifyOtp()      Confirms email, signs user in
+/                    Role selection (→ /setup if no family data yet)
+/setup               Existing family creation wizard (unchanged)
+/parent              Parent dashboard
+```
+
+Login flow:
+```
+/login               Email + password → signInWithPassword() → /
+```
+
+Middleware enforces auth on all routes except `/login`, `/signup`, `/signup/verify`, `/auth/callback`.
+
+---
+
+#### Supabase Email Template — Required Configuration
+
+For 6-digit OTP codes (instead of magic links), the "Confirm signup" email template in Supabase dashboard must be updated:
+
+**Auth > Email Templates > Confirm signup** — replace the default body with:
+
+```html
+<h2>Confirm your email</h2>
+<p>Your verification code for Kids Rewards:</p>
+<h1 style="letter-spacing: 0.3em; font-size: 2em;">{{ .Token }}</h1>
+<p>This code expires in 1 hour.</p>
+<p>Or <a href="{{ .ConfirmationURL }}">click here</a> to confirm automatically.</p>
+```
+
+The `{{ .Token }}` variable is the 6-digit OTP. The `{{ .ConfirmationURL }}` fallback link redirects to `/auth/callback` which exchanges the code for a session.
+
+**Auth > URL Configuration:**
+- Site URL: `https://kids.motivationlabs.ai`
+- Redirect URLs: add `https://kids.motivationlabs.ai/auth/callback`
+
+---
+
+#### Pages Built
+
+| Route | Purpose |
+|-------|---------|
+| `/login` | Email + password sign-in. Error messages are user-friendly (not raw Supabase). Redirect param preserved so users land where they tried to go. |
+| `/signup` | Email + password account creation. Phone tab shown but disabled with "Soon" badge. Password must be 8+ chars; confirm field shows red border on mismatch. |
+| `/signup/verify` | 6-digit numeric OTP input. Large centered input with letter-spacing for readability. Resend code button. Both verify (`verifyOtp`) and resend (`auth.resend`) wired to Supabase. Magic-link fallback via `/auth/callback`. |
+| `/auth/callback` | Server-side route that exchanges Supabase `code` param for a session cookie, then redirects to `/`. |
+
+---
+
+#### Design
+
+- Consistent with app palette: warm cream background (`bg-page`), amber brand colour, Nunito font, rounded-3xl card
+- Mobile-first (max-w-sm, full-screen layout)
+- OTP input: large text (3xl), letter-spacing 0.4em, numeric keyboard on mobile
+- All three pages captured in `tests/auth-screens/` (7 screenshots)
+
+---
+
+### Deployment Decision — Mar 2026
+
+**Live production URL:** https://kids.motivationlabs.ai
+
+**Current live version:** Email + password auth with OTP verification (v1.5)
+
+**What is live:**
+- Email + password signup with OTP email verification (Round 9)
+- Family creation wizard after first login
+- Full star economy (earn / deduct / redeem)
+- Avatar system with 30 Figma preset avatars
+- Avatar frames (7 tiers, lifetime-star unlocks)
+- Animation & sound feedback
+- All parent management screens
+- Kid dashboards with badges and rewards
+- Data stored in localStorage (single device; multi-device sync planned for v2)
+
+**What is deferred:**
+- Google OAuth / social login
+- Multi-device sync (Supabase DB write-through)
+- Invite / family member management
+- Photo avatar upload
+
+---
+
+### Round 8 — Supabase Backend Setup (Mar 2026)
+
+The Supabase project **"motivate your kids"** (`vkqzosxjsiyhjltzwpaw`, region: ap-southeast-1) is fully provisioned and schema-ready. The database is the authoritative backend for v2 (multi-device sync). The app currently runs entirely on localStorage (v1); this infrastructure is standing by for the v2 migration.
+
+---
+
+#### Database Schema (live in Supabase)
+
+All tables have RLS enabled. Data is scoped to families via the `user_family_ids()` helper.
+
+| Table | Description |
+|-------|-------------|
+| `families` | One row per family — `id`, `name`, `created_at` |
+| `family_members` | Links `auth.users` to families — `user_id`, `family_id`, `relationship`, `is_owner`, `joined_at` |
+| `invites` | 24-hour invite tokens — `token` (unique), `family_id`, `email?`, `relationship`, `status`, `expires_at` |
+| `kids` | `id`, `family_id`, `name`, `avatar`, `color_accent`, `wishlist` (text[]), `avatar_frame`, `created_at` |
+| `categories` | `id`, `family_id`, `name`, `icon` |
+| `actions` | `id`, `family_id`, `name`, `description`, `category_id?`, `points_value`, `is_deduction`, `badge_id?`, `is_template`, `is_active` |
+| `badges` | `id`, `family_id`, `name`, `icon`, `description` |
+| `rewards` | `id`, `family_id`, `name`, `description`, `points_cost`, `is_active` |
+| `transactions` | `id`, `kid_id`, `type` (earn/redeem/deduct), `amount`, `action_id?`, `reward_id?`, `status`, `timestamp`, `note?`, `reason?` |
+| `kid_badges` | `(kid_id, badge_id)` composite PK + `awarded_at` |
+
+**Custom types (enums):**
+- `transaction_type`: `earn | redeem | deduct`
+- `transaction_status`: `approved | pending | denied`
+- `member_relationship`: `mother | father | grandma | grandpa | aunt | uncle | other`
+- `invite_status`: `pending | accepted | expired`
+
+**RLS policies (all tables):**
+- `families`: members can SELECT their family; owners can UPDATE; authenticated users can INSERT (create new family)
+- `family_members`: members can SELECT co-members; INSERT own membership; UPDATE own record
+- `invites`: anyone can SELECT by token (invite link); family members can INSERT and SELECT; UPDATE on accept
+- `kids / categories / actions / badges / rewards`: family members can ALL (CRUD)
+- `transactions`: scoped to kids in the user's families — family members can ALL
+- `kid_badges`: scoped to kids in the user's families — family members can ALL
+
+**Database functions:**
+- `user_family_ids()` — returns `uuid[]` of families the current user belongs to (used in all RLS policies)
+- `validate_invite(p_token text)` — validates token, checks expiry, returns invite data
+- `accept_invite(p_token text, p_user_id uuid, p_display_name text)` — SECURITY DEFINER; marks invite accepted and inserts `family_members` row
+
+---
+
+#### Storage
+
+**Bucket:** `avatars` (public read)
+
+| Policy | Role | Operation |
+|--------|------|-----------|
+| Anyone can read avatars | public | SELECT |
+| Authenticated users can upload avatars | authenticated | INSERT |
+| Authenticated users can update own avatars | authenticated | UPDATE (owner = auth.uid()) |
+| Authenticated users can delete own avatars | authenticated | DELETE (owner = auth.uid()) |
+
+---
+
+#### Auth Configuration (to complete before v2 launch)
+
+The following must be configured in the Supabase dashboard before wiring auth into the app:
+
+1. **Google OAuth:**
+   - Auth > Providers > Google → enable, paste Client ID + Secret from Google Cloud Console
+   - Google Cloud Console: add `https://vkqzosxjsiyhjltzwpaw.supabase.co/auth/v1/callback` as authorized redirect URI
+   - Supabase: Auth > URL Configuration → add `https://kids.motivationlabs.ai` to Site URL and Redirect URLs
+
+2. **Email (OTP / magic link):**
+   - Auth > Providers > Email → enable "Confirm email" and "Enable email OTP"
+   - Auth > Email Templates → customise with brand colours (optional)
+   - Set `RESEND_API_KEY` in Vercel env if using custom SMTP via Resend
+
+3. **Vercel environment variables required:**
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://vkqzosxjsiyhjltzwpaw.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from Supabase Settings > API>
+   RESEND_API_KEY=<Resend API key>
+   NEXT_PUBLIC_APP_URL=https://kids.motivationlabs.ai
+   ```
+
+---
+
+#### v2 Migration Plan (localStorage → Supabase)
+
+When auth is ready to ship, the migration path is:
+
+1. **Re-add packages:** `@supabase/ssr`, `@supabase/supabase-js`, `resend`
+2. **Restore auth pages:** `app/login`, `app/signup`, `app/auth/callback` (from git history: commit `9e19014`)
+3. **Restore API routes:** `app/api/invite/*` (from git history)
+4. **Restore middleware:** auth enforcement (from git history: commit `9600797`)
+5. **Restore settings page** family member management section
+6. **Add sync layer:** new `lib/sync.ts` — on sign-in, check if Supabase family exists for user; if not, offer to import from localStorage; if yes, load from Supabase into context
+7. **Dual-write period:** write to both localStorage and Supabase simultaneously during migration to avoid data loss
+8. **Field mapping** (localStorage camelCase → Supabase snake_case):
+   | localStorage | Supabase |
+   |---|---|
+   | `colorAccent` | `color_accent` |
+   | `pointsValue` | `points_value` |
+   | `isDeduction` | `is_deduction` |
+   | `isTemplate` | `is_template` |
+   | `isActive` | `is_active` |
+   | `avatarFrame` | `avatar_frame` |
+   | `pointsCost` | `points_cost` |
+   | `familyId` | `family_id` |
+   | `kidId` | `kid_id` |
+   | `actionId` | `action_id` |
+   | `rewardId` | `reward_id` |
+   | `awardedAt` | `awarded_at` |
+   | `createdAt` | `created_at` |
+
+---
+
+### Round 10 — Settings, Family Members & Action Memos (Mar 2026)
+
+---
+
+#### FB-14 · Rename "More" Tab to "Settings"  *(Completed)*
+
+**Change:** Bottom nav tab renamed from "More" (☰) to "Settings" (⚙️). i18n updated for en/zh.
+
+---
+
+#### FB-15 · Family Member Management  *(Completed)*
+
+> Parents need to see, add, and manage family members with defined roles and relationships to the kids.
+
+**Requirements:**
+- New route: `/parent/family` — accessible from Settings hub.
+- Add/edit/remove family members with: name, avatar (emoji or preset), role, and optional birthday.
+- **Role constraints:** Mother and Father are single-occupancy (max one each). Grandma, Grandpa, Aunt, Uncle, Nanny, and Other can have multiples.
+- **Invite link generation:** Create invite links scoped to a role. Links expire after 24 hours. Copy-to-clipboard support.
+- Pending invites displayed with expiry countdown and delete option.
+
+**Data model additions:**
+```
+FamilyMember   { id, familyId, name, avatar, role, birthday?, createdAt }
+FamilyInvite   { id, familyId, token, role, createdAt, expiresAt }
+FamilyRole     = 'mother' | 'father' | 'grandma' | 'grandpa' | 'aunt' | 'uncle' | 'nanny' | 'other'
+```
+
+**New route:** `/parent/family`
+
+---
+
+#### FB-16 · Action Logging Memos — Photo & Voice  *(Completed)*
+
+> When logging an action, parents can attach a photo and/or a 10-second voice memo as evidence or context.
+
+**Requirements:**
+- Quick Log modal (Actions tab + Home page) gains a "Memo (optional)" section with:
+  - **Photo capture:** camera/gallery file picker → client-side resize (max 800px) + compress (WebP/JPEG) → stored as base64 data URL in localStorage.
+  - **Voice recording:** in-app microphone recording, max 10 seconds, auto-stops at limit. Stored as WebM base64 data URL. Playback/remove controls after recording.
+- Memos are stored on the `Transaction` entity (`photoUrl`, `voiceMemoUrl` fields).
+- Activity feed shows 📷 and 🎙 indicators on transactions that have attachments.
+- No external dependencies — uses native `MediaRecorder` and `Canvas` APIs.
+
+**Data model changes:**
+```
+Transaction += { photoUrl?: string, voiceMemoUrl?: string }
+```
+
+**Files changed:**
+- `types/index.ts` — added `FamilyMember`, `FamilyInvite`, `FamilyRole`, memo fields on `Transaction`, updated `AppStore`
+- `lib/store.ts` — updated `DEFAULT_STORE`
+- `context/FamilyContext.tsx` — added family member CRUD + invite methods, updated `logCompletion` signature
+- `components/ParentNav.tsx` — "More" → "Settings" with ⚙️ icon
+- `components/VoiceRecorder.tsx` — new voice recording component
+- `components/PhotoCapture.tsx` — new photo capture component
+- `app/parent/more/page.tsx` — renamed header, added Family Members menu item
+- `app/parent/family/page.tsx` — new family members management page
+- `app/parent/actions/page.tsx` — added memo UI to Quick Log modal
+- `app/parent/page.tsx` — added memo UI to home page quick action sheet, memo indicators in activity feed
+- `lib/i18n.ts` — added `nav.settings` key for en/zh

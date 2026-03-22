@@ -1,282 +1,139 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+
+function LoginForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect') ?? '/'
+  const authError = searchParams.get('error')
+  const existing = searchParams.get('existing')
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [info, setInfo] = useState(
+    existing === '1' ? 'An account with this email already exists. Please sign in.' : '',
+  )
+  const [error, setError] = useState(
+    authError === 'auth_failed' ? 'Authentication failed. Please try again.' : '',
+  )
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setInfo('')
+    setLoading(true)
+
+    const supabase = createClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (signInError) {
+      // Give a friendly message instead of raw Supabase errors
+      const msg = signInError.message.toLowerCase()
+      if (msg.includes('invalid') || msg.includes('credentials') || msg.includes('password')) {
+        setError('Incorrect email or password.')
+      } else if (msg.includes('confirmed') || msg.includes('verified')) {
+        setError(
+          'Please verify your email first. Check your inbox for a confirmation code.',
+        )
+      } else {
+        setError(signInError.message)
+      }
+      setLoading(false)
+      return
+    }
+
+    router.replace(redirectTo)
+  }
+
+  return (
+    <main className="min-h-screen bg-page flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="text-6xl mb-3">⭐</div>
+          <h1 className="text-2xl font-extrabold text-ink-primary">Kids Rewards</h1>
+          <p className="text-ink-secondary text-sm mt-1">Sign in to your account</p>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-card p-6 flex flex-col gap-4">
+          <div>
+            <label className="block text-xs font-bold text-ink-secondary mb-1.5 uppercase tracking-wide">
+              Email
+            </label>
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full rounded-xl border-2 border-line px-4 py-3 text-ink-primary outline-none focus:border-brand transition-colors text-base"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-ink-secondary uppercase tracking-wide">
+                Password
+              </label>
+            </div>
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Your password"
+              className="w-full rounded-xl border-2 border-line px-4 py-3 text-ink-primary outline-none focus:border-brand transition-colors text-base"
+            />
+          </div>
+
+          {info && (
+            <p className="text-blue-600 text-sm font-semibold bg-blue-50 rounded-xl px-4 py-3">
+              {info}
+            </p>
+          )}
+
+          {error && (
+            <p className="text-red-500 text-sm font-semibold bg-red-50 rounded-xl px-4 py-3">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || !email || !password}
+            className="w-full py-4 rounded-2xl bg-brand hover:bg-brand-hover disabled:opacity-50 text-white font-extrabold text-base shadow-brand transition-colors mt-1"
+          >
+            {loading ? 'Signing in…' : 'Sign in →'}
+          </button>
+        </form>
+
+        <p className="text-center text-ink-secondary text-sm mt-6">
+          New here?{' '}
+          <Link href="/signup" className="text-brand font-bold hover:underline">
+            Create an account
+          </Link>
+        </p>
+      </div>
+    </main>
+  )
+}
 
 export default function LoginPage() {
   return (
     <Suspense>
       <LoginForm />
     </Suspense>
-  )
-}
-
-type AuthMode = 'password' | 'otp'
-
-function LoginForm() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [googleLoading, setGoogleLoading] = useState(false)
-  const [authMode, setAuthMode] = useState<AuthMode>('password')
-  const [otpSent, setOtpSent] = useState(false)
-  const [otpCode, setOtpCode] = useState('')
-  const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') ?? '/'
-
-  async function handleGoogleLogin() {
-    setError('')
-    setGoogleLoading(true)
-
-    const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
-      },
-    })
-
-    if (authError) {
-      setError(authError.message)
-      setGoogleLoading(false)
-    }
-  }
-
-  async function handlePasswordSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (authError) {
-      setError(authError.message)
-      setLoading(false)
-      return
-    }
-
-    window.location.href = redirect
-  }
-
-  async function handleSendOtp(e: React.FormEvent) {
-    e.preventDefault()
-    if (!email) return
-    setError('')
-    setLoading(true)
-
-    const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithOtp({
-      email,
-    })
-
-    if (authError) {
-      setError(authError.message)
-      setLoading(false)
-      return
-    }
-
-    setOtpSent(true)
-    setLoading(false)
-  }
-
-  async function handleVerifyOtp(e: React.FormEvent) {
-    e.preventDefault()
-    if (!otpCode) return
-    setError('')
-    setLoading(true)
-
-    const supabase = createClient()
-    const { error: authError } = await supabase.auth.verifyOtp({
-      email,
-      token: otpCode,
-      type: 'email',
-    })
-
-    if (authError) {
-      setError(authError.message)
-      setLoading(false)
-      return
-    }
-
-    window.location.href = redirect
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-[#58CC02] to-[#46A302] flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <p className="text-5xl mb-3">⭐</p>
-          <h1 className="text-3xl font-extrabold text-white font-[Nunito]">
-            Welcome Back!
-          </h1>
-          <p className="text-white/70 mt-1 font-[Nunito] font-semibold">
-            Log in to your family
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleGoogleLogin}
-          disabled={googleLoading}
-          className="w-full h-14 rounded-2xl bg-white text-[#3C3C3C] font-[Nunito] font-extrabold text-base shadow-[0_4px_0_#d1d5db] active:shadow-none active:translate-y-1 transition-all disabled:opacity-60 flex items-center justify-center gap-3"
-        >
-          <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-          {googleLoading ? 'Redirecting...' : 'Continue with Google'}
-        </button>
-
-        <div className="flex items-center gap-3 my-5">
-          <div className="flex-1 h-px bg-white/30" />
-          <span className="text-white/60 font-[Nunito] font-semibold text-xs uppercase">or</span>
-          <div className="flex-1 h-px bg-white/30" />
-        </div>
-
-        {/* Auth mode toggle */}
-        <div className="flex rounded-xl overflow-hidden border-2 border-white/30 mb-4">
-          <button
-            type="button"
-            onClick={() => { setAuthMode('password'); setError(''); setOtpSent(false) }}
-            className={`flex-1 py-2.5 text-sm font-bold font-[Nunito] transition-colors ${
-              authMode === 'password' ? 'bg-white text-[#58CC02]' : 'text-white/80 hover:bg-white/10'
-            }`}
-          >
-            Password
-          </button>
-          <button
-            type="button"
-            onClick={() => { setAuthMode('otp'); setError('') }}
-            className={`flex-1 py-2.5 text-sm font-bold font-[Nunito] transition-colors ${
-              authMode === 'otp' ? 'bg-white text-[#58CC02]' : 'text-white/80 hover:bg-white/10'
-            }`}
-          >
-            Email Code
-          </button>
-        </div>
-
-        {authMode === 'password' && (
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              className="w-full h-12 px-4 rounded-2xl bg-white text-[#3C3C3C] font-[Nunito] font-semibold placeholder:text-gray-400 outline-none"
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full h-12 px-4 rounded-2xl bg-white text-[#3C3C3C] font-[Nunito] font-semibold placeholder:text-gray-400 outline-none"
-            />
-
-            {error && (
-              <p className="text-red-200 text-sm font-[Nunito] font-semibold text-center">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-14 rounded-2xl bg-white text-[#58CC02] font-[Nunito] font-extrabold text-lg shadow-[0_4px_0_#d1d5db] active:shadow-none active:translate-y-1 transition-all disabled:opacity-60"
-            >
-              {loading ? 'Logging in...' : 'Log In'}
-            </button>
-          </form>
-        )}
-
-        {authMode === 'otp' && !otpSent && (
-          <form onSubmit={handleSendOtp} className="space-y-4">
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              className="w-full h-12 px-4 rounded-2xl bg-white text-[#3C3C3C] font-[Nunito] font-semibold placeholder:text-gray-400 outline-none"
-            />
-
-            {error && (
-              <p className="text-red-200 text-sm font-[Nunito] font-semibold text-center">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-14 rounded-2xl bg-white text-[#58CC02] font-[Nunito] font-extrabold text-lg shadow-[0_4px_0_#d1d5db] active:shadow-none active:translate-y-1 transition-all disabled:opacity-60"
-            >
-              {loading ? 'Sending...' : 'Send Login Code'}
-            </button>
-
-            <p className="text-white/60 text-xs font-[Nunito] font-semibold text-center">
-              We&apos;ll send a 6-digit code to your email
-            </p>
-          </form>
-        )}
-
-        {authMode === 'otp' && otpSent && (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div className="text-center mb-2">
-              <p className="text-white/90 text-sm font-[Nunito] font-semibold">
-                Code sent to <strong>{email}</strong>
-              </p>
-            </div>
-
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="6-digit code"
-              value={otpCode}
-              onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              required
-              maxLength={6}
-              autoFocus
-              className="w-full h-14 px-4 rounded-2xl bg-white text-[#3C3C3C] font-[Nunito] font-extrabold text-2xl text-center tracking-[0.3em] placeholder:text-gray-400 placeholder:text-base placeholder:tracking-normal placeholder:font-semibold outline-none"
-            />
-
-            {error && (
-              <p className="text-red-200 text-sm font-[Nunito] font-semibold text-center">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading || otpCode.length < 6}
-              className="w-full h-14 rounded-2xl bg-white text-[#58CC02] font-[Nunito] font-extrabold text-lg shadow-[0_4px_0_#d1d5db] active:shadow-none active:translate-y-1 transition-all disabled:opacity-60"
-            >
-              {loading ? 'Verifying...' : 'Verify Code'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => { setOtpSent(false); setOtpCode(''); setError('') }}
-              className="w-full text-center text-white/70 font-[Nunito] font-semibold text-sm"
-            >
-              ← Use a different email
-            </button>
-          </form>
-        )}
-
-        <p className="text-center mt-6 text-white/80 font-[Nunito] font-semibold text-sm">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-white underline font-bold">
-            Sign Up
-          </Link>
-        </p>
-      </div>
-    </div>
   )
 }

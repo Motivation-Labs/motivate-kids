@@ -17,7 +17,7 @@ export function createServerSupabaseClient() {
               cookieStore.set(name, value, options),
             )
           } catch {
-            // Ignore in Server Components (read-only)
+            // Called from Server Component — cookies can't be set; safe to ignore
           }
         },
       },

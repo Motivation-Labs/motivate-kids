@@ -2,6 +2,11 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // Allow bypassing auth for screenshot tests
+  if (process.env.SKIP_AUTH_FOR_SCREENSHOTS === 'true') {
+    return NextResponse.next()
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -25,24 +30,32 @@ export async function middleware(request: NextRequest) {
     },
   )
 
-  // Refresh session — IMPORTANT: do not remove
-  const { data: { user } } = await supabase.auth.getUser()
+  // Refresh session — must not be removed
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch {
+    // Supabase unreachable — treat as unauthenticated
+  }
 
   const { pathname } = request.nextUrl
 
-  // Public routes that don't require auth
-  const publicRoutes = ['/login', '/signup', '/invite', '/auth/callback']
-  const isPublic = publicRoutes.some(route => pathname.startsWith(route))
+  // Routes that don't require auth
+  const publicPrefixes = ['/login', '/signup', '/auth/callback']
+  const isPublic =
+    publicPrefixes.some(p => pathname.startsWith(p)) ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api')
 
-  // Redirect unauthenticated users to login (except public routes and static assets)
-  if (!user && !isPublic && !pathname.startsWith('/_next') && !pathname.startsWith('/api')) {
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
   }
 
-  // Redirect authenticated users away from login/signup
+  // Authenticated users don't need the auth pages
   if (user && (pathname === '/login' || pathname === '/signup')) {
     const url = request.nextUrl.clone()
     url.pathname = '/'

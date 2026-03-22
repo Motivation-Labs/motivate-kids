@@ -43,3 +43,15 @@ export function getKidTransactions(kidId: string, transactions: Transaction[]): 
     .filter(tx => tx.kidId === kidId)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 }
+
+/**
+ * Computes lifetime earned stars (only earn transactions, not affected by redeems/deducts).
+ * Used for avatar frame unlocking.
+ */
+export function getLifetimeEarned(kidId: string, transactions: Transaction[]): number {
+  return transactions.reduce((sum, tx) => {
+    if (tx.kidId !== kidId || tx.status !== 'approved') return sum
+    if (tx.type === 'earn') return sum + tx.amount
+    return sum
+  }, 0)
+}
