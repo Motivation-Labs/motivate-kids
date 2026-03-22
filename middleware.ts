@@ -34,8 +34,11 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = ['/login', '/signup', '/invite', '/auth/callback']
   const isPublic = publicRoutes.some(route => pathname.startsWith(route))
 
+  // Local screenshot testing bypass — never set in production
+  const skipAuth = process.env.SKIP_AUTH_FOR_SCREENSHOTS === 'true'
+
   // Redirect unauthenticated users to login (except public routes and static assets)
-  if (!user && !isPublic && !pathname.startsWith('/_next') && !pathname.startsWith('/api')) {
+  if (!skipAuth && !user && !isPublic && !pathname.startsWith('/_next') && !pathname.startsWith('/api')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirect', pathname)
@@ -43,7 +46,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from login/signup
-  if (user && (pathname === '/login' || pathname === '/signup')) {
+  if (!skipAuth && user && (pathname === '/login' || pathname === '/signup')) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)

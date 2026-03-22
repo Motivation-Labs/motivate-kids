@@ -28,6 +28,7 @@ import {
   countPendingRedemptions,
   getKidBadgeRecords,
   getKidTransactions,
+  getLifetimeEarned,
 } from '@/lib/helpers'
 
 // ── Reducer action types ──────────────────────────────────────────────────────
@@ -232,6 +233,7 @@ interface FamilyContextValue {
   getPendingCount: (kidId?: string) => number
   getKidBadges: (kidId: string) => KidBadge[]
   getTransactions: (kidId: string) => Transaction[]
+  getLifetimeStars: (kidId: string) => number
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -249,10 +251,12 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     setHydrated(true)
   }, [])
 
-  // Persist to localStorage whenever store changes
+  // Persist to localStorage whenever store changes — only after hydration
+  // so that the initial DEFAULT_STORE render doesn't overwrite seeded data.
   useEffect(() => {
+    if (!hydrated) return
     saveStore(store)
-  }, [store])
+  }, [store, hydrated])
 
   // ── Family ────────────────────────────────────────────────────────────────
 
@@ -532,6 +536,11 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     [store.transactions],
   )
 
+  const getLifetimeStars = useCallback(
+    (kidId: string) => getLifetimeEarned(kidId, store.transactions),
+    [store.transactions],
+  )
+
   const value: FamilyContextValue = {
     store,
     hydrated,
@@ -567,6 +576,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     getPendingCount,
     getKidBadges,
     getTransactions,
+    getLifetimeStars,
   }
 
   return <FamilyContext.Provider value={value}>{children}</FamilyContext.Provider>

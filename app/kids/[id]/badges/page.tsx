@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useFamily } from '@/context/FamilyContext'
+import { AvatarDisplay } from '@/components/AvatarDisplay'
 
 export default function KidBadgesPage({ params }: { params: { id: string } }) {
   const { id } = params
@@ -19,7 +20,7 @@ export default function KidBadgesPage({ params }: { params: { id: string } }) {
   return (
     <main className="p-5 max-w-sm mx-auto">
       <header className="flex items-center gap-3 pt-6 mb-8">
-        <span className="text-4xl">{kid.avatar}</span>
+        <AvatarDisplay avatar={kid.avatar} size={44} frame={kid.avatarFrame} />
         <h1 className="text-2xl font-bold text-ink-primary">{kid.name}&apos;s Badges</h1>
       </header>
 

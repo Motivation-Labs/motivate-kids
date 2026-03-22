@@ -806,3 +806,164 @@ Preparing the app for external distribution to the parent focus group. Covers au
 | 2 | FB-12 | Settings page + Supabase queries |
 | 3 | FB-13 | New components + Supabase Storage + avatar migration |
 | 4 | FB-14 | lib/sounds.ts + CSS animations + settings toggle |
+
+---
+
+### Round 7 — Emotional Engagement & Delight (Mar 2026)
+
+Building deeper emotional connection for kids (ages 4–8) through a virtual companion, richer animation feedback loops, and family avatar decoration effects.
+
+---
+
+#### FB-15 · Virtual Companion (Plant or Animal)  *(High priority)*
+
+> A living creature on the kid dashboard that **grows** as the kid earns stars and **wilts / looks sad** when punishments happen. This gives kids an emotional anchor — they are not just collecting numbers, they are caring for something.
+
+**Concept:**
+- Each kid gets a virtual companion displayed prominently on their dashboard.
+- The companion has **mood states** driven by recent activity:
+  - **Happy / thriving:** Recent earn transactions → companion blooms, bounces, sparkles.
+  - **Sad / wilting:** Recent deduct transactions → companion droops, loses color, shows a tear.
+  - **Neutral / resting:** No recent activity → calm idle animation.
+- The companion **evolves** through growth stages as the kid accumulates lifetime stars:
+  - Stage 1 (0–50 stars): Seed / egg / baby
+  - Stage 2 (51–200 stars): Sprout / hatchling
+  - Stage 3 (201–500 stars): Young plant / juvenile
+  - Stage 4 (501–1000 stars): Blooming / adolescent
+  - Stage 5 (1001+ stars): Full bloom / adult with decorations
+- Growth is based on **lifetime earned stars** (not current balance), so redeeming rewards does not cause regression.
+
+**Companion types (parent chooses during kid setup or kid picks):**
+- 🌱 Plant line: seed → sprout → sapling → flowering tree → grand tree with fruit
+- 🐣 Animal line: egg → chick → young bird → colorful bird → phoenix-like bird with sparkles
+- More types can be added later (ocean creature, dragon, etc.)
+
+**Data model additions:**
+```
+Kid  { ..., companionType?: 'plant' | 'animal', companionStage?: number }
+```
+- `companionStage` is computed from lifetime earned stars but cached for performance.
+- Mood is computed client-side from the last 3 transactions (no new field needed).
+
+**UI placement:**
+- Kid dashboard: companion occupies a prominent card between the star balance and badges section.
+- Companion animates continuously (idle loop) with mood-specific variations.
+- Tapping the companion triggers a small interaction animation (bounce, hearts, etc.).
+
+**Animation requirements:**
+- Each growth stage has a distinct SVG/Lottie illustration.
+- Transitions between stages play a celebratory evolution animation.
+- Mood changes animate smoothly (e.g., plant wilting over 0.5s, not instant).
+
+---
+
+#### FB-16 · Animation Feedback Loop Enhancement  *(High priority)*
+
+> Animation is the primary language for kids aged 4–8. Every meaningful action should have a visible, delightful reaction — not just a toast message.
+
+**Requirements:**
+
+**a) Earn stars — celebration cascade:**
+- Existing confetti + sound retained.
+- Add: star count does an exaggerated bounce-scale animation (1.0 → 1.4 → 1.0).
+- Add: companion reacts — happy bounce, sparkle particles around it.
+- Add: earned amount floats up from the action button as "+5 ⭐" with fade-out.
+- Duration: ~1.5s total cascade.
+
+**b) Deduct stars — gentle consequence feedback:**
+- Star count shrinks briefly (1.0 → 0.85 → 1.0) with a subtle red flash on the number.
+- Companion reacts — droops, single tear drop animation, color desaturation.
+- Deducted amount floats down as "−3 ⭐" in muted red with fade-out.
+- No confetti, no celebratory sound — the existing soft descending tone plays.
+- Duration: ~1.2s.
+
+**c) Redeem reward — achievement moment:**
+- Gift emoji burst (🎁) animation around the reward card.
+- Star count does a smooth count-down animation (numerically ticking from old to new value).
+- Companion does a proud/excited animation.
+- Celebratory bell sound plays.
+
+**d) Growth stage evolution — milestone moment:**
+- Full-screen overlay with particle effects.
+- Old stage fades/shrinks, new stage grows in with spring animation.
+- Congratulatory message: "Your [companion] evolved!" with sparkle text.
+- Sound: ascending fanfare (new sound, 2s).
+- This is the highest-impact animation in the app — should feel like a true achievement.
+
+**e) Badge earned:**
+- Badge icon flies from off-screen to the badge wall position.
+- Shimmer effect on the new badge for 3s.
+- Companion reacts with a happy animation.
+
+**Technical approach:**
+- CSS keyframe animations for simple transforms (bounce, scale, fade).
+- Framer Motion for orchestrated sequences (earn cascade, evolution overlay).
+- Lottie for companion illustrations (lightweight, vector-based, loopable).
+- All animations respect `prefers-reduced-motion` media query.
+
+---
+
+#### FB-17 · Family Avatar Decoration Effects  *(Medium priority)*
+
+> Family member avatars (parent and kid) should feel expressive and customizable — decorations and effects make them personal and fun.
+
+**Requirements:**
+
+**a) Avatar frames / borders:**
+- Selectable decorative frames around avatars: crown, stars, hearts, flowers, lightning, rainbow ring.
+- Frames are SVG overlays rendered on top of the circular avatar.
+- Parents choose frames for kids during profile setup; kids can browse and request changes.
+- Frames can be earned as rewards (e.g., "unlock the crown frame for 100 ⭐").
+
+**b) Avatar status effects:**
+- Animated effects that play on the avatar based on state:
+  - Sparkle particles: when the kid recently earned stars (last 30 min).
+  - Glow ring: when the kid leveled up their companion recently.
+  - Celebration burst: on the home page when the kid's companion just evolved.
+- Effects are subtle and non-distracting — small particles, soft glow, no flashing.
+
+**c) Avatar mood indicator:**
+- Small emoji overlay on the avatar corner showing companion mood: 😊 (happy), 😢 (sad), 😴 (neutral/idle).
+- Synced with companion mood state from FB-15.
+
+**Data model additions:**
+```
+Kid  { ..., avatarFrame?: string }
+```
+- `avatarFrame` stores the selected frame ID (e.g., `"crown"`, `"stars"`, `"rainbow"`).
+- Status effects and mood indicators are computed client-side — no persistence needed.
+
+**Available frames (v1):**
+| ID | Visual | Unlock |
+|----|--------|--------|
+| `none` | No frame (default) | Free |
+| `stars` | Rotating star ring | Free |
+| `hearts` | Heart border | 50 ⭐ |
+| `crown` | Golden crown on top | 100 ⭐ |
+| `flowers` | Floral wreath | 75 ⭐ |
+| `rainbow` | Rainbow ring | 150 ⭐ |
+| `lightning` | Electric sparks | 200 ⭐ |
+
+---
+
+#### Priority Matrix (Round 7)
+
+| ID | Feature | Priority | Effort | Target |
+|----|---------|----------|--------|--------|
+| FB-15 | Virtual companion | High | L | v0.4.0 |
+| FB-16 | Animation feedback loop | High | M | v0.4.0 |
+| FB-17 | Avatar decoration effects | Medium | M | v0.4.0 |
+
+#### Implementation Order
+
+| # | Feature | Scope |
+|---|---------|-------|
+| 1 | FB-15 | Data model + companion component + dashboard integration |
+| 2 | FB-16 | Animation system + earn/deduct/redeem/evolution cascades |
+| 3 | FB-17 | Avatar frames + status effects + mood indicator |
+
+#### Design Dependencies
+
+- Companion illustrations (plant stages × moods, animal stages × moods) — need SVG or Lottie assets.
+- Avatar frame SVGs — 7 decorative frame designs.
+- All visual assets to be designed in the `.pen` design file or sourced from Figma before implementation.

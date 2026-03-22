@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useFamily } from '@/context/FamilyContext'
+import { AvatarDisplay } from '@/components/AvatarDisplay'
 
 export default function KidRewardsPage({ params }: { params: { id: string } }) {
   const { id } = params
@@ -25,7 +26,7 @@ export default function KidRewardsPage({ params }: { params: { id: string } }) {
     <main className="p-5 max-w-sm mx-auto">
       <header className="pt-6 mb-4">
         <div className="flex items-center gap-3 mb-2">
-          <span className="text-4xl">{kid.avatar}</span>
+          <AvatarDisplay avatar={kid.avatar} size={44} frame={kid.avatarFrame} />
           <h1 className="text-2xl font-bold text-ink-primary">Rewards</h1>
         </div>
         <div className="inline-flex items-center gap-1 bg-white rounded-xl px-3 py-1.5 shadow-card">

@@ -20,6 +20,8 @@ export interface Kid {
   createdAt: string
   /** Reward IDs the kid has wishlisted (max 3) */
   wishlist?: string[]
+  /** Decorative frame around avatar (e.g., "stars", "crown", "rainbow") */
+  avatarFrame?: string
 }
 
 export interface Category {

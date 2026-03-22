@@ -11,6 +11,7 @@ import { fireStarConfetti } from '@/lib/confetti'
 import { randomEarnPhrase, randomDeductPhrase } from '@/lib/messages'
 import { playEarnSound, playDeductSound, playRedeemSound } from '@/lib/sounds'
 import { AvatarDisplay } from '@/components/AvatarDisplay'
+import { FloatingStarLabel } from '@/components/FloatingStarLabel'
 import type { Transaction } from '@/types'
 
 type QuickType = 'earn' | 'deduct' | 'redeem'
@@ -80,6 +81,12 @@ export default function ParentDashboard() {
   const [showAllActions, setShowAllActions] = useState(false)
   const [showAllRewards, setShowAllRewards] = useState(false)
   const [quickSearch, setQuickSearch] = useState('')
+
+  // Animation feedback
+  const [floatTrigger, setFloatTrigger] = useState(0)
+  const [floatAmount, setFloatAmount] = useState(0)
+  const [floatType, setFloatType] = useState<'earn' | 'deduct' | 'redeem'>('earn')
+  const [giftBurst, setGiftBurst] = useState(false)
 
   // Undo delete
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
@@ -225,6 +232,11 @@ export default function ParentDashboard() {
       awardDeduction(quickKidId, quickAmount, quickReason.trim() || undefined)
     }
 
+    // Trigger floating label animation
+    setFloatAmount(quickAmount)
+    setFloatType(quickType)
+    setFloatTrigger(t => t + 1)
+
     if (quickType === 'earn') {
       showFlash(`+${quickAmount}⭐ for ${kidName}! ${randomEarnPhrase()}`)
       fireStarConfetti()
@@ -251,6 +263,14 @@ export default function ParentDashboard() {
     const kidName = store.kids.find(k => k.id === quickKidId)?.name ?? ''
     showFlash(`🎁 ${reward.name} → ${kidName}!`)
     playRedeemSound()
+
+    // Trigger animations
+    setFloatAmount(redeemCost)
+    setFloatType('redeem')
+    setFloatTrigger(t => t + 1)
+    setGiftBurst(true)
+    setTimeout(() => setGiftBurst(false), 800)
+
     setQuickType(null)
   }
 
@@ -322,6 +342,29 @@ export default function ParentDashboard() {
         </div>
       )}
 
+      {/* Floating star label animation */}
+      <div className="fixed top-1/3 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
+        <FloatingStarLabel amount={floatAmount} type={floatType} trigger={floatTrigger} />
+      </div>
+
+      {/* Gift burst animation on redeem */}
+      {giftBurst && (
+        <div className="fixed inset-0 z-[55] pointer-events-none flex items-center justify-center">
+          {[...Array(6)].map((_, i) => (
+            <span
+              key={i}
+              className="absolute text-3xl animate-gift-burst"
+              style={{
+                animationDelay: `${i * 80}ms`,
+                transform: `rotate(${i * 60}deg) translateY(-30px)`,
+              }}
+            >
+              🎁
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Undo delete toast */}
       {pendingDeleteId && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-2xl px-4 py-3 flex items-center gap-3 shadow-lg whitespace-nowrap">
@@ -375,7 +418,7 @@ export default function ParentDashboard() {
                   style={{ borderColor: kid.colorAccent }}
                 >
                   <div className="flex items-center gap-3 mb-3">
-                    <AvatarDisplay avatar={kid.avatar} size={36} />
+                    <AvatarDisplay avatar={kid.avatar} size={36} frame={kid.avatarFrame} />
                     <div className="flex-1">
                       <p className="font-bold text-ink-primary leading-tight">{kid.name}</p>
                       <p className="text-sm font-bold" style={{ color: kid.colorAccent }}>{bal} ⭐</p>
@@ -433,7 +476,7 @@ export default function ParentDashboard() {
                           key={tx.id}
                           className={`flex items-center gap-3 px-3 py-2.5 ${i < group.txs.length - 1 ? 'border-b border-line-subtle' : ''}`}
                         >
-                          <AvatarDisplay avatar={kid?.avatar ?? '👦'} size={24} />
+                          <AvatarDisplay avatar={kid?.avatar ?? '👦'} size={24} frame={kid?.avatarFrame} />
                           <span className="text-base flex-shrink-0">{icon}</span>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-ink-primary truncate">{getTxLabel(tx)}</p>
@@ -476,7 +519,7 @@ export default function ParentDashboard() {
             {/* Sheet header — fixed */}
             <div className="flex-shrink-0 px-5 pt-5 pb-3 border-b border-line-subtle">
               <div className="flex items-center gap-3">
-                <span className="text-3xl leading-none">{quickKid.avatar}</span>
+                <AvatarDisplay avatar={quickKid.avatar} size={36} frame={quickKid.avatarFrame} />
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-ink-primary leading-tight">{quickKid.name}</p>
                   <p className="text-xs text-ink-muted">{t('quick.balance', { n: kidBalance })}</p>
