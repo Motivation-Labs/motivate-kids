@@ -105,7 +105,6 @@ export default function KidsPage() {
               <AvatarPicker
                 value={draft.avatar}
                 onChange={avatar => setDraft(d => ({ ...d, avatar }))}
-                uploadPrefix="kids"
               />
             </div>
 
