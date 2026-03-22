@@ -26,7 +26,13 @@ export async function middleware(request: NextRequest) {
   )
 
   // Refresh session — IMPORTANT: do not remove
-  const { data: { user } } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch {
+    // If Supabase is unreachable, treat as unauthenticated
+  }
 
   const { pathname } = request.nextUrl
 

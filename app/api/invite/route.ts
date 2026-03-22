@@ -3,8 +3,6 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 import crypto from 'crypto'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 /** POST /api/invite — Create an invite and optionally send email */
 export async function POST(request: NextRequest) {
   const supabase = createServerSupabaseClient()
@@ -67,6 +65,7 @@ export async function POST(request: NextRequest) {
     const familyName = families?.[0]?.name || 'a family'
 
     try {
+      const resend = new Resend(process.env.RESEND_API_KEY)
       await resend.emails.send({
         from: 'Motivate Your Kids <onboarding@resend.dev>',
         to: email,
