@@ -203,7 +203,6 @@ export default function SettingsPage() {
         <MembersTab
           store={store}
           isCurrentOwner={isCurrentOwner}
-          addFamilyMember={addFamilyMember}
           updateFamilyMember={updateFamilyMember}
           removeFamilyMember={removeFamilyMember}
           createFamilyInvite={createFamilyInvite}
@@ -366,13 +365,12 @@ export default function SettingsPage() {
 
 function MembersTab({
   store, isCurrentOwner,
-  addFamilyMember, updateFamilyMember, removeFamilyMember,
+  updateFamilyMember, removeFamilyMember,
   createFamilyInvite, approveInvite, removeFamilyInvite,
   transferOwnership, approveJoinRequest, denyJoinRequest,
 }: {
   store: ReturnType<typeof useFamily>['store']
   isCurrentOwner: boolean
-  addFamilyMember: ReturnType<typeof useFamily>['addFamilyMember']
   updateFamilyMember: ReturnType<typeof useFamily>['updateFamilyMember']
   removeFamilyMember: ReturnType<typeof useFamily>['removeFamilyMember']
   createFamilyInvite: ReturnType<typeof useFamily>['createFamilyInvite']
@@ -382,16 +380,17 @@ function MembersTab({
   approveJoinRequest: ReturnType<typeof useFamily>['approveJoinRequest']
   denyJoinRequest: ReturnType<typeof useFamily>['denyJoinRequest']
 }) {
-  const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<FamilyMember | null>(null)
-  const [name, setName] = useState('')
-  const [avatar, setAvatar] = useState('👩')
-  const [role, setRole] = useState<FamilyRole>('mother')
-  const [birthday, setBirthday] = useState('')
+  const [editName, setEditName] = useState('')
+  const [editAvatar, setEditAvatar] = useState('👩')
+  const [editRole, setEditRole] = useState<FamilyRole>('mother')
+  const [editBirthday, setEditBirthday] = useState('')
+  const [showEditForm, setShowEditForm] = useState(false)
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
 
   const [showInvite, setShowInvite] = useState(false)
   const [inviteRole, setInviteRole] = useState<FamilyRole>('mother')
+  const [inviteName, setInviteName] = useState('')
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
 
@@ -409,25 +408,16 @@ function MembersTab({
     })
   }
 
-  function openNew() {
-    setEditing(null); setName(''); setAvatar('👩'); setRole('mother'); setBirthday('')
-    setShowForm(true); setShowAvatarPicker(false)
-  }
-
   function openEdit(member: FamilyMember) {
-    setEditing(member); setName(member.name); setAvatar(member.avatar)
-    setRole(member.role); setBirthday(member.birthday ?? '')
-    setShowForm(true); setShowAvatarPicker(false)
+    setEditing(member); setEditName(member.name); setEditAvatar(member.avatar)
+    setEditRole(member.role); setEditBirthday(member.birthday ?? '')
+    setShowEditForm(true); setShowAvatarPicker(false)
   }
 
-  function handleSave() {
-    if (!name.trim()) return
-    if (editing) {
-      updateFamilyMember({ ...editing, name: name.trim(), avatar, role, birthday: birthday || undefined })
-    } else {
-      addFamilyMember({ name: name.trim(), avatar, role, birthday: birthday || undefined })
-    }
-    setShowForm(false)
+  function handleEditSave() {
+    if (!editName.trim() || !editing) return
+    updateFamilyMember({ ...editing, name: editName.trim(), avatar: editAvatar, role: editRole, birthday: editBirthday || undefined })
+    setShowEditForm(false)
   }
 
   function handleRemove(member: FamilyMember) {
@@ -435,18 +425,26 @@ function MembersTab({
     if (confirm(`Remove ${member.name} from the family?`)) removeFamilyMember(member.id)
   }
 
+  function buildInviteUrl(token: string, name?: string) {
+    const url = new URL(`${window.location.origin}/invite`)
+    url.searchParams.set('token', token)
+    if (name?.trim()) url.searchParams.set('name', name.trim())
+    return url.toString()
+  }
+
   function handleCreateInvite() {
     const invite = createFamilyInvite(inviteRole)
-    const url = `${window.location.origin}/invite?token=${invite.token}`
+    const url = buildInviteUrl(invite.token, inviteName)
     navigator.clipboard.writeText(url).then(() => {
       setCopiedInviteId(invite.id)
       setTimeout(() => setCopiedInviteId(null), 3000)
     }).catch(() => {})
+    setInviteName('')
     setShowInvite(false)
   }
 
   function copyInviteLink(invite: FamilyInvite) {
-    const url = `${window.location.origin}/invite?token=${invite.token}`
+    const url = buildInviteUrl(invite.token)
     navigator.clipboard.writeText(url).then(() => {
       setCopiedInviteId(invite.id)
       setTimeout(() => setCopiedInviteId(null), 3000)
@@ -475,18 +473,27 @@ function MembersTab({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Family code card */}
-      {store.family?.displayCode && (
-        <section className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
-          <p className="text-xs text-amber-700 font-bold uppercase tracking-wide mb-1">Family Code</p>
-          <p className="text-3xl font-mono font-black text-amber-800 tracking-widest mb-1">{store.family.displayCode}</p>
-          <p className="text-xs text-amber-600 mb-3">Share this code with family members to join</p>
-          <button onClick={copyFamilyCode}
-            className="px-4 py-1.5 rounded-lg bg-amber-200 text-amber-800 text-xs font-bold hover:bg-amber-300 transition-colors">
-            {copiedCode ? 'Copied!' : 'Copy Code'}
-          </button>
-        </section>
-      )}
+      {/* Family code card — always visible */}
+      <section className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+        <p className="text-xs text-amber-700 font-bold uppercase tracking-wide mb-1">Family Code</p>
+        {store.family?.displayCode ? (
+          <>
+            <p className="text-3xl font-mono font-black text-amber-800 tracking-widest mb-1">{store.family.displayCode}</p>
+            <p className="text-xs text-amber-600 mb-3">Share this code so others can request to join your family</p>
+            <button onClick={copyFamilyCode}
+              className="px-4 py-1.5 rounded-lg bg-amber-200 text-amber-800 text-xs font-bold hover:bg-amber-300 transition-colors">
+              {copiedCode ? 'Copied!' : 'Copy Code'}
+            </button>
+          </>
+        ) : store.family?.uid ? (
+          <>
+            <p className="text-3xl font-mono font-black text-amber-800 tracking-widest mb-1">{store.family.uid}</p>
+            <p className="text-xs text-amber-600">Your family ID</p>
+          </>
+        ) : (
+          <p className="text-xs text-amber-600 py-2">No family code — re-create your family to get one.</p>
+        )}
+      </section>
 
       {/* Pending join requests */}
       {isCurrentOwner && pendingJoinRequests.length > 0 && (
@@ -537,15 +544,12 @@ function MembersTab({
 
       {/* Members list */}
       <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-brand uppercase tracking-wide">Members</h2>
-          <button onClick={openNew} className="px-3 py-1.5 rounded-xl bg-brand text-white font-bold text-xs">+ Add</button>
-        </div>
+        <h2 className="text-sm font-semibold text-brand uppercase tracking-wide mb-3">Members</h2>
         {store.familyMembers.length === 0 ? (
           <div className="text-center py-10">
             <div className="text-5xl mb-3">👨‍👩‍👧</div>
             <p className="text-ink-secondary mb-1">No family members yet.</p>
-            <button onClick={openNew} className="px-5 py-2 rounded-xl bg-brand text-white font-bold text-sm">Add first member</button>
+            <p className="text-xs text-ink-muted">Create an invite link below to add caregivers.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -619,21 +623,21 @@ function MembersTab({
 
       {/* ── Modals ────────────────────────────────────────────────────── */}
 
-      {/* Add/Edit member modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowForm(false)}>
+      {/* Edit member modal */}
+      {showEditForm && editing && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowEditForm(false)}>
           <div className="bg-white w-full rounded-t-3xl p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto max-w-lg mx-auto"
             onClick={e => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-ink-primary">{editing ? 'Edit Member' : 'Add Family Member'}</h2>
+            <h2 className="text-lg font-bold text-ink-primary">Edit Member</h2>
 
             <div>
               <label className="block text-xs font-bold text-ink-secondary mb-2 uppercase tracking-wide">Avatar</label>
               {showAvatarPicker ? (
-                <AvatarPicker value={avatar} onChange={v => { setAvatar(v); setShowAvatarPicker(false) }} />
+                <AvatarPicker value={editAvatar} onChange={v => { setEditAvatar(v); setShowAvatarPicker(false) }} />
               ) : (
                 <button type="button" onClick={() => setShowAvatarPicker(true)}
                   className="flex items-center gap-3 w-full p-3 rounded-xl border-2 border-line hover:border-brand transition-colors">
-                  <AvatarDisplay avatar={avatar} size={48} />
+                  <AvatarDisplay avatar={editAvatar} size={48} />
                   <span className="text-sm text-brand font-medium">Tap to change avatar</span>
                 </button>
               )}
@@ -641,17 +645,17 @@ function MembersTab({
 
             <div>
               <label className="block text-xs font-bold text-ink-secondary mb-1.5 uppercase tracking-wide">Name</label>
-              <input autoFocus autoComplete="off" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sarah"
+              <input autoFocus autoComplete="off" value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. Sarah"
                 className="w-full rounded-xl border-2 border-line px-4 py-3 text-ink-primary outline-none focus:border-brand" />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-ink-secondary mb-2 uppercase tracking-wide">Relationship to kids</label>
               <div className="grid grid-cols-4 gap-2">
-                {getAvailableRoles(editing?.role).map(r => (
-                  <button key={r.value} type="button" onClick={() => setRole(r.value)}
+                {getAvailableRoles(editing.role).map(r => (
+                  <button key={r.value} type="button" onClick={() => setEditRole(r.value)}
                     className={`flex flex-col items-center gap-1 py-2 px-1 rounded-xl border-2 text-xs font-medium transition-all ${
-                      role === r.value ? 'border-brand bg-brand-light text-brand' : 'border-line text-ink-secondary'
+                      editRole === r.value ? 'border-brand bg-brand-light text-brand' : 'border-line text-ink-secondary'
                     }`}>
                     <span className="text-lg">{r.emoji}</span><span>{r.label}</span>
                   </button>
@@ -661,15 +665,15 @@ function MembersTab({
 
             <div>
               <label className="block text-xs font-bold text-ink-secondary mb-1.5 uppercase tracking-wide">Birthday (optional)</label>
-              <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)}
+              <input type="date" value={editBirthday} onChange={e => setEditBirthday(e.target.value)}
                 className="w-full rounded-xl border-2 border-line px-4 py-3 text-ink-primary outline-none focus:border-brand" />
             </div>
 
-            <button onClick={handleSave} disabled={!name.trim()}
+            <button onClick={handleEditSave} disabled={!editName.trim()}
               className="w-full py-3 rounded-2xl bg-brand hover:bg-brand-hover disabled:opacity-40 text-white font-bold">
-              {editing ? 'Save Changes' : 'Add Member'}
+              Save Changes
             </button>
-            <button onClick={() => setShowForm(false)} className="text-center text-ink-muted text-sm">Cancel</button>
+            <button onClick={() => setShowEditForm(false)} className="text-center text-ink-muted text-sm">Cancel</button>
           </div>
         </div>
       )}
@@ -696,6 +700,17 @@ function MembersTab({
                   </button>
                 ))}
               </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-ink-secondary mb-2 uppercase tracking-wide">Invitee name (optional)</label>
+              <input
+                type="text"
+                value={inviteName}
+                onChange={e => setInviteName(e.target.value)}
+                placeholder="e.g. Grandma Susan"
+                className="w-full border-2 border-line rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand"
+              />
+              <p className="text-xs text-ink-muted mt-1">Pre-fills the name field when they open the invite link.</p>
             </div>
             <button onClick={handleCreateInvite}
               className="w-full py-3 rounded-2xl bg-brand hover:bg-brand-hover text-white font-bold">Create & Copy Link</button>
