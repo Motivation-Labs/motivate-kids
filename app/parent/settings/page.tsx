@@ -7,6 +7,7 @@ import { useLocale } from '@/context/LocaleContext'
 import { createClient } from '@/lib/supabase/client'
 import { clearStore } from '@/lib/store'
 import { loadMeta, saveMeta } from '@/lib/meta'
+import { Pencil } from 'lucide-react'
 import { AvatarPicker } from '@/components/AvatarPicker'
 import { AvatarDisplay } from '@/components/AvatarDisplay'
 import { FramePicker } from '@/components/FramePicker'
@@ -394,6 +395,8 @@ function MembersTab({
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null)
   const [copiedCode, setCopiedCode] = useState(false)
 
+  const [memberToRemove, setMemberToRemove] = useState<FamilyMember | null>(null)
+
   const [showTransfer, setShowTransfer] = useState(false)
   const [transferTargetId, setTransferTargetId] = useState<string | null>(null)
   const [confirmTransfer, setConfirmTransfer] = useState(false)
@@ -421,20 +424,27 @@ function MembersTab({
   }
 
   function handleRemove(member: FamilyMember) {
-    if (member.isOwner) { alert('Cannot remove the family owner. Transfer ownership first.'); return }
-    if (confirm(`Remove ${member.name} from the family?`)) removeFamilyMember(member.id)
+    if (member.isOwner) return // owner cannot remove themselves
+    setMemberToRemove(member)
   }
 
-  function buildInviteUrl(token: string, name?: string) {
-    const url = new URL(`${window.location.origin}/invite`)
-    url.searchParams.set('token', token)
+  function confirmRemove() {
+    if (!memberToRemove) return
+    removeFamilyMember(memberToRemove.id)
+    setMemberToRemove(null)
+  }
+
+  function buildInviteUrl(role: FamilyRole, name?: string) {
+    const code = store.family?.displayCode || store.family?.uid || ''
+    const base = `${window.location.origin}/invite/${encodeURIComponent(code)}/${role}`
+    const url = new URL(base)
     if (name?.trim()) url.searchParams.set('name', name.trim())
     return url.toString()
   }
 
   function handleCreateInvite() {
     const invite = createFamilyInvite(inviteRole)
-    const url = buildInviteUrl(invite.token, inviteName)
+    const url = buildInviteUrl(invite.role, inviteName)
     navigator.clipboard.writeText(url).then(() => {
       setCopiedInviteId(invite.id)
       setTimeout(() => setCopiedInviteId(null), 3000)
@@ -444,7 +454,7 @@ function MembersTab({
   }
 
   function copyInviteLink(invite: FamilyInvite) {
-    const url = buildInviteUrl(invite.token)
+    const url = buildInviteUrl(invite.role)
     navigator.clipboard.writeText(url).then(() => {
       setCopiedInviteId(invite.id)
       setTimeout(() => setCopiedInviteId(null), 3000)
@@ -555,7 +565,16 @@ function MembersTab({
           <div className="flex flex-col gap-3">
             {store.familyMembers.map(member => (
               <div key={member.id} className="bg-white rounded-2xl p-4 shadow-card flex items-center gap-3">
-                <AvatarDisplay avatar={member.avatar} size={48} />
+                {isCurrentOwner ? (
+                  <button type="button" onClick={() => openEdit(member)} className="relative flex-shrink-0">
+                    <AvatarDisplay avatar={member.avatar} size={48} />
+                    <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-brand text-white flex items-center justify-center shadow-md">
+                      <Pencil size={10} />
+                    </span>
+                  </button>
+                ) : (
+                  <AvatarDisplay avatar={member.avatar} size={48} />
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-bold text-ink-primary">{member.name}</p>
@@ -674,6 +693,29 @@ function MembersTab({
               Save Changes
             </button>
             <button onClick={() => setShowEditForm(false)} className="text-center text-ink-muted text-sm">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Remove member confirmation modal */}
+      {memberToRemove && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setMemberToRemove(null)}>
+          <div className="bg-white w-full rounded-t-3xl p-6 flex flex-col gap-4 max-w-lg mx-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <AvatarDisplay avatar={memberToRemove.avatar} size={48} />
+              <div>
+                <h2 className="text-lg font-bold text-ink-primary">Remove {memberToRemove.name}?</h2>
+                <p className="text-sm text-ink-secondary">{getRoleEmoji(memberToRemove.role)} {getRoleLabel(memberToRemove.role)}</p>
+              </div>
+            </div>
+            <p className="text-sm text-ink-secondary bg-red-50 rounded-xl px-4 py-3 text-red-700">
+              This will remove {memberToRemove.name} from the family. They won&apos;t be able to manage kids or log actions. This cannot be undone.
+            </p>
+            <button onClick={confirmRemove}
+              className="w-full py-3 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-bold transition-colors">
+              Remove {memberToRemove.name}
+            </button>
+            <button onClick={() => setMemberToRemove(null)} className="text-center text-ink-muted text-sm">Cancel</button>
           </div>
         </div>
       )}
@@ -805,14 +847,14 @@ function ProfilesTab({
     return lastUpdate <= oneYearAgo
   }
 
-  function openAccountEdit() {
+  function openAccountEdit(openPicker = false) {
     if (!currentMember) return
     setAcctAvatar(currentMember.avatar)
     setAcctBirthday(currentMember.birthday ?? '')
     setAcctGender((currentMember.gender as Gender) ?? '')
     setAcctRole(currentMember.role)
     setShowAccountEdit(true)
-    setShowAvatarPicker(false)
+    setShowAvatarPicker(openPicker)
     setBirthdayConfirmed(false)
     setShowBirthdayConfirm(false)
   }
@@ -896,10 +938,15 @@ function ProfilesTab({
         <section className="bg-white rounded-2xl p-5 shadow-card">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-brand uppercase tracking-wide">My Profile</h2>
-            <button onClick={openAccountEdit} className="text-sm text-brand font-medium">Edit</button>
+            <button onClick={() => openAccountEdit()} className="text-sm text-brand font-medium">Edit</button>
           </div>
           <div className="flex items-center gap-4">
-            <AvatarDisplay avatar={currentMember.avatar} size={56} />
+            <button type="button" onClick={() => openAccountEdit(true)} className="relative flex-shrink-0">
+              <AvatarDisplay avatar={currentMember.avatar} size={64} />
+              <span className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-brand text-white flex items-center justify-center shadow-md">
+                <Pencil size={12} />
+              </span>
+            </button>
             <div className="flex-1">
               <p className="font-bold text-ink-primary text-lg">{currentMember.name}</p>
               <div className="flex flex-wrap gap-2 mt-1 text-xs text-ink-secondary">
@@ -969,7 +1016,12 @@ function ProfilesTab({
             {store.kids.map(kid => (
               <div key={kid.id} className="bg-white rounded-2xl p-4 shadow-card border-l-4 flex items-center gap-4"
                 style={{ borderColor: kid.colorAccent }}>
-                <AvatarDisplay avatar={kid.avatar} size={48} frame={kid.avatarFrame} />
+                <button type="button" onClick={() => openKidEdit(kid)} className="relative flex-shrink-0">
+                  <AvatarDisplay avatar={kid.avatar} size={52} frame={kid.avatarFrame} />
+                  <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-brand text-white flex items-center justify-center shadow-md">
+                    <Pencil size={10} />
+                  </span>
+                </button>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-ink-primary">{kid.name}</p>
                   <div className="flex flex-wrap gap-1.5 text-xs text-ink-secondary mt-0.5">
