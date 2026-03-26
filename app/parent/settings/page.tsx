@@ -7,6 +7,7 @@ import { useLocale } from '@/context/LocaleContext'
 import { createClient } from '@/lib/supabase/client'
 import { clearStore } from '@/lib/store'
 import { loadMeta, saveMeta } from '@/lib/meta'
+import { Pencil } from 'lucide-react'
 import { AvatarPicker } from '@/components/AvatarPicker'
 import { AvatarDisplay } from '@/components/AvatarDisplay'
 import { FramePicker } from '@/components/FramePicker'
@@ -564,7 +565,16 @@ function MembersTab({
           <div className="flex flex-col gap-3">
             {store.familyMembers.map(member => (
               <div key={member.id} className="bg-white rounded-2xl p-4 shadow-card flex items-center gap-3">
-                <AvatarDisplay avatar={member.avatar} size={48} />
+                {isCurrentOwner ? (
+                  <button type="button" onClick={() => openEdit(member)} className="relative flex-shrink-0">
+                    <AvatarDisplay avatar={member.avatar} size={48} />
+                    <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-brand text-white flex items-center justify-center shadow-md">
+                      <Pencil size={10} />
+                    </span>
+                  </button>
+                ) : (
+                  <AvatarDisplay avatar={member.avatar} size={48} />
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-bold text-ink-primary">{member.name}</p>
@@ -837,14 +847,14 @@ function ProfilesTab({
     return lastUpdate <= oneYearAgo
   }
 
-  function openAccountEdit() {
+  function openAccountEdit(openPicker = false) {
     if (!currentMember) return
     setAcctAvatar(currentMember.avatar)
     setAcctBirthday(currentMember.birthday ?? '')
     setAcctGender((currentMember.gender as Gender) ?? '')
     setAcctRole(currentMember.role)
     setShowAccountEdit(true)
-    setShowAvatarPicker(false)
+    setShowAvatarPicker(openPicker)
     setBirthdayConfirmed(false)
     setShowBirthdayConfirm(false)
   }
@@ -928,10 +938,15 @@ function ProfilesTab({
         <section className="bg-white rounded-2xl p-5 shadow-card">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-brand uppercase tracking-wide">My Profile</h2>
-            <button onClick={openAccountEdit} className="text-sm text-brand font-medium">Edit</button>
+            <button onClick={() => openAccountEdit()} className="text-sm text-brand font-medium">Edit</button>
           </div>
           <div className="flex items-center gap-4">
-            <AvatarDisplay avatar={currentMember.avatar} size={56} />
+            <button type="button" onClick={() => openAccountEdit(true)} className="relative flex-shrink-0">
+              <AvatarDisplay avatar={currentMember.avatar} size={64} />
+              <span className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-brand text-white flex items-center justify-center shadow-md">
+                <Pencil size={12} />
+              </span>
+            </button>
             <div className="flex-1">
               <p className="font-bold text-ink-primary text-lg">{currentMember.name}</p>
               <div className="flex flex-wrap gap-2 mt-1 text-xs text-ink-secondary">
@@ -1001,7 +1016,12 @@ function ProfilesTab({
             {store.kids.map(kid => (
               <div key={kid.id} className="bg-white rounded-2xl p-4 shadow-card border-l-4 flex items-center gap-4"
                 style={{ borderColor: kid.colorAccent }}>
-                <AvatarDisplay avatar={kid.avatar} size={48} frame={kid.avatarFrame} />
+                <button type="button" onClick={() => openKidEdit(kid)} className="relative flex-shrink-0">
+                  <AvatarDisplay avatar={kid.avatar} size={52} frame={kid.avatarFrame} />
+                  <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-brand text-white flex items-center justify-center shadow-md">
+                    <Pencil size={10} />
+                  </span>
+                </button>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-ink-primary">{kid.name}</p>
                   <div className="flex flex-wrap gap-1.5 text-xs text-ink-secondary mt-0.5">
