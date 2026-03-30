@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { useFamily } from '@/context/FamilyContext'
+import Link from 'next/link'
 
 function formatTime(ts: string): string {
   const d = new Date(ts)
@@ -30,11 +32,25 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function HistoryPage() {
-  const { store } = useFamily()
+  const { store, cancelTransaction } = useFamily()
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+
+  const cancelledTxIds = new Set(
+    store.transactions.filter(tx => tx.cancelledTxId).map(tx => tx.cancelledTxId),
+  )
 
   const allTxs = [...store.transactions].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   )
+
+  function handleCancel(txId: string) {
+    if (cancellingId === txId) {
+      cancelTransaction(txId)
+      setCancellingId(null)
+    } else {
+      setCancellingId(txId)
+    }
+  }
 
   return (
     <main className="p-5 max-w-lg mx-auto">
@@ -57,29 +73,49 @@ export default function HistoryPage() {
             const reward = tx.rewardId ? store.rewards.find(r => r.id === tx.rewardId) : null
             const label = action?.name ?? reward?.name ?? tx.reason ?? tx.note ?? (tx.type === 'earn' ? 'Bonus stars' : tx.type === 'deduct' ? 'Deduction' : 'Redemption')
             const isEarn = tx.type === 'earn'
+            const isCancelled = cancelledTxIds.has(tx.id)
+            const isCancelEntry = !!tx.cancelledTxId
+            const canCancel = tx.status === 'approved' && !isCancelled && !isCancelEntry
+            const hasPhoto = !!tx.photoUrl
+            const hasVoice = !!tx.voiceMemoUrl
 
             return (
               <div
                 key={tx.id}
-                className={`flex items-center gap-3 px-4 py-3 ${i < allTxs.length - 1 ? 'border-b border-line-subtle' : ''}`}
+                className={`flex items-center gap-3 px-4 py-3 ${i < allTxs.length - 1 ? 'border-b border-line-subtle' : ''} ${isCancelled ? 'opacity-50' : ''}`}
               >
                 <span className="text-2xl w-8 text-center">{kid?.avatar ?? '👦'}</span>
-                <div className="flex-1 min-w-0">
+                <Link href={`/parent/history/${tx.id}`} className="flex-1 min-w-0">
                   <p className="font-medium text-ink-primary text-sm truncate">
                     <span className="text-brand">{kid?.name ?? '?'}</span>
                     {' · '}
+                    {isCancelEntry && <span className="text-ink-muted">↩ </span>}
                     {label}
+                    {isCancelled && <span className="text-ink-muted text-xs ml-1">(cancelled)</span>}
                   </p>
-                  <p className="text-ink-muted text-xs">{formatTime(tx.timestamp)}</p>
-                </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-ink-muted text-xs">{formatTime(tx.timestamp)}</span>
+                    {hasPhoto && <span className="text-xs" title="Has photo">📷</span>}
+                    {hasVoice && <span className="text-xs" title="Has voice memo">🎤</span>}
+                  </div>
+                </Link>
                 <div className="flex flex-col items-end gap-0.5">
-                  <span className={`font-bold text-sm ${isEarn ? 'text-green-500' : 'text-red-400'}`}>
+                  <span className={`font-bold text-sm ${isEarn ? 'text-green-500' : 'text-red-400'} ${isCancelled ? 'line-through' : ''}`}>
                     {isEarn ? '+' : '-'}{tx.amount}⭐
                   </span>
                   {tx.type === 'redeem' && (
                     <span className={`text-xs font-bold ${STATUS_COLOR[tx.status]}`}>
                       {STATUS_LABEL[tx.status]}
                     </span>
+                  )}
+                  {canCancel && (
+                    <button
+                      type="button"
+                      onClick={() => handleCancel(tx.id)}
+                      className={`text-xs font-medium ${cancellingId === tx.id ? 'text-red-500' : 'text-ink-muted hover:text-red-400'} transition-colors`}
+                    >
+                      {cancellingId === tx.id ? 'Confirm?' : 'Cancel'}
+                    </button>
                   )}
                 </div>
               </div>

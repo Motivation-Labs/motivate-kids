@@ -351,6 +351,7 @@ interface FamilyContextValue {
   approveRedemption: (transactionId: string) => void
   denyRedemption: (transactionId: string) => void
   removeTransaction: (id: string) => void
+  cancelTransaction: (id: string) => void
 
   // Family members
   addFamilyMember: (data: Omit<FamilyMember, 'id' | 'familyId' | 'createdAt'>) => void
@@ -726,6 +727,23 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     persist(() => dbDeleteTransaction(supabase, id))
   }, [supabase, persist])
 
+  const cancelTransaction = useCallback((id: string) => {
+    const original = store.transactions.find(t => t.id === id)
+    if (!original || original.status !== 'approved') return
+    const reverseTx: Transaction = {
+      id: generateId(),
+      kidId: original.kidId,
+      type: original.type === 'earn' ? 'deduct' : 'earn',
+      amount: original.amount,
+      status: 'approved',
+      timestamp: new Date().toISOString(),
+      note: `Cancelled: ${original.note ?? original.reason ?? ''}`.trim(),
+      cancelledTxId: original.id,
+    }
+    dispatch({ type: 'ADD_TRANSACTION', payload: reverseTx })
+    persist(() => insertTransaction(supabase, reverseTx))
+  }, [store.transactions, supabase, persist])
+
   const redeemReward = useCallback(
     (kidId: string, rewardId: string, costOverride?: number) => {
       const reward = store.rewards.find(r => r.id === rewardId)
@@ -1052,6 +1070,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     approveRedemption,
     denyRedemption,
     removeTransaction,
+    cancelTransaction,
     addFamilyMember,
     updateFamilyMember: updateFamilyMemberFn,
     removeFamilyMember,
