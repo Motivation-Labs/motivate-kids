@@ -5,10 +5,10 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 interface VoiceRecorderProps {
   value: string | undefined
   onChange: (dataUrl: string | undefined) => void
-  maxDuration?: number // seconds, default 10
+  maxDuration?: number // seconds, default 20
 }
 
-export function VoiceRecorder({ value, onChange, maxDuration = 10 }: VoiceRecorderProps) {
+export function VoiceRecorder({ value, onChange, maxDuration = 20 }: VoiceRecorderProps) {
   const [recording, setRecording] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [playing, setPlaying] = useState(false)

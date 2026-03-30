@@ -92,8 +92,10 @@ export interface Transaction {
   reason?: string
   /** Base64 data URL of an attached photo */
   photoUrl?: string
-  /** Base64 data URL of an attached voice memo (max 10s) */
+  /** Base64 data URL of an attached voice memo (max 20s) */
   voiceMemoUrl?: string
+  /** ID of the transaction this entry cancels (reverse entry) */
+  cancelledTxId?: string
 }
 
 export interface KidBadge {
