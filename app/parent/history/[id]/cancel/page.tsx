@@ -39,34 +39,50 @@ export default function CancelConfirmPage() {
   const { store, cancelTransaction, getBalance } = useFamily()
   const [phase, setPhase] = useState<Phase>('confirm')
 
-  const tx = store.transactions.find(t => t.id === id)
+  // Snapshot balance at the moment of confirmation so re-renders don't collapse the animation
+  const [snapshotFrom, setSnapshotFrom] = useState(0)
+  const [snapshotTo, setSnapshotTo] = useState(0)
+  const [snapshotDelta, setSnapshotDelta] = useState(0)
 
-  if (!tx) {
-    return (
-      <main className="p-5 max-w-lg mx-auto">
-        <div className="text-center py-16">
-          <p className="text-ink-secondary">Transaction not found.</p>
-          <button type="button" onClick={() => router.back()} className="mt-4 text-brand font-bold text-sm">
-            ← Back
-          </button>
-        </div>
-      </main>
-    )
+  const tx = store.transactions.find(t => t.id === id)
+  const isCancelled = store.transactions.some(t => t.cancelledTxId === id)
+  const isCancelEntry = !!tx?.cancelledTxId
+
+  if (!tx || isCancelled || isCancelEntry) {
+    // Guard: tx not found, already cancelled, or is itself a cancel entry
+    if (phase !== 'animating' && phase !== 'done') {
+      return (
+        <main className="p-5 max-w-lg mx-auto">
+          <div className="text-center py-16">
+            <p className="text-ink-secondary">
+              {!tx ? 'Transaction not found.' : 'This action has already been cancelled.'}
+            </p>
+            <button type="button" onClick={() => router.push('/parent/history')} className="mt-4 text-brand font-bold text-sm">
+              ← Back to History
+            </button>
+          </div>
+        </main>
+      )
+    }
   }
 
-  const kid = store.kids.find(k => k.id === tx.kidId)
-  const action = tx.actionId ? store.actions.find(a => a.id === tx.actionId) : null
-  const reward = tx.rewardId ? store.rewards.find(r => r.id === tx.rewardId) : null
-  const label = action?.name ?? reward?.name ?? tx.note ?? tx.reason ?? (tx.type === 'earn' ? 'Bonus stars' : tx.type === 'deduct' ? 'Deduction' : 'Redemption')
-  const isEarn = tx.type === 'earn'
+  const kid = tx ? store.kids.find(k => k.id === tx.kidId) : null
+  const action = tx?.actionId ? store.actions.find(a => a.id === tx.actionId) : null
+  const reward = tx?.rewardId ? store.rewards.find(r => r.id === tx.rewardId) : null
+  const label = action?.name ?? reward?.name ?? tx?.note ?? tx?.reason ?? (tx?.type === 'earn' ? 'Bonus stars' : tx?.type === 'deduct' ? 'Deduction' : 'Redemption')
+  const isEarn = tx?.type === 'earn'
 
-  const currentBalance = getBalance(tx.kidId)
-  // Cancelling an earn removes points; cancelling a deduct adds points back
-  const balanceAfter = isEarn ? currentBalance - tx.amount : currentBalance + tx.amount
-  const pointsDelta = isEarn ? -tx.amount : +tx.amount
+  const currentBalance = tx ? getBalance(tx.kidId) : 0
+  const pointsDelta = isEarn ? -(tx?.amount ?? 0) : +(tx?.amount ?? 0)
+  const balanceAfter = currentBalance + pointsDelta
 
   function handleConfirm() {
-    cancelTransaction(tx!.id)
+    if (!tx) return
+    // Snapshot values before dispatching so re-render doesn't collapse animation
+    setSnapshotFrom(currentBalance)
+    setSnapshotTo(balanceAfter)
+    setSnapshotDelta(pointsDelta)
+    cancelTransaction(tx.id)
     setPhase('animating')
     setTimeout(() => setPhase('done'), 1200)
   }
@@ -79,16 +95,16 @@ export default function CancelConfirmPage() {
           <div className="text-6xl mb-3">⭐</div>
           <p className="text-ink-muted text-sm mb-1">{kid?.name ?? 'Unknown'}</p>
           <p className="text-4xl font-black text-ink-primary tabular-nums">
-            <AnimatedNumber from={currentBalance} to={balanceAfter} />
+            <AnimatedNumber from={snapshotFrom} to={snapshotTo} />
           </p>
 
           {/* Delta indicator */}
           <div
             className={`mt-3 text-lg font-bold transition-all duration-500 ${
               phase === 'animating' ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
-            } ${pointsDelta > 0 ? 'text-green-500' : 'text-red-400'}`}
+            } ${snapshotDelta > 0 ? 'text-green-500' : 'text-red-400'}`}
           >
-            {pointsDelta > 0 ? '+' : ''}{pointsDelta} stars
+            {snapshotDelta > 0 ? '+' : ''}{snapshotDelta} stars
           </div>
 
           {/* Success message */}
@@ -141,7 +157,7 @@ export default function CancelConfirmPage() {
               <p className="text-brand text-xs">{kid?.name ?? 'Unknown'}</p>
             </div>
             <span className={`font-bold text-sm ${isEarn ? 'text-green-500' : 'text-red-400'}`}>
-              {isEarn ? '+' : '-'}{tx.amount}⭐
+              {isEarn ? '+' : '-'}{tx?.amount ?? 0}⭐
             </span>
           </div>
         </div>
