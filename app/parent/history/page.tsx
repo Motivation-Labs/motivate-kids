@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { useFamily } from '@/context/FamilyContext'
 import Link from 'next/link'
 
@@ -32,8 +31,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function HistoryPage() {
-  const { store, cancelTransaction } = useFamily()
-  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const { store } = useFamily()
 
   const cancelledTxIds = new Set(
     store.transactions.filter(tx => tx.cancelledTxId).map(tx => tx.cancelledTxId),
@@ -42,15 +40,6 @@ export default function HistoryPage() {
   const allTxs = [...store.transactions].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   )
-
-  function handleCancel(txId: string) {
-    if (cancellingId === txId) {
-      cancelTransaction(txId)
-      setCancellingId(null)
-    } else {
-      setCancellingId(txId)
-    }
-  }
 
   return (
     <main className="p-5 max-w-lg mx-auto">
@@ -75,7 +64,6 @@ export default function HistoryPage() {
             const isEarn = tx.type === 'earn'
             const isCancelled = cancelledTxIds.has(tx.id)
             const isCancelEntry = !!tx.cancelledTxId
-            const canCancel = tx.status === 'approved' && !isCancelled && !isCancelEntry
             const hasPhoto = !!tx.photoUrl
             const hasVoice = !!tx.voiceMemoUrl
 
@@ -107,15 +95,6 @@ export default function HistoryPage() {
                     <span className={`text-xs font-bold ${STATUS_COLOR[tx.status]}`}>
                       {STATUS_LABEL[tx.status]}
                     </span>
-                  )}
-                  {canCancel && (
-                    <button
-                      type="button"
-                      onClick={() => handleCancel(tx.id)}
-                      className={`text-xs font-medium ${cancellingId === tx.id ? 'text-red-500' : 'text-ink-muted hover:text-red-400'} transition-colors`}
-                    >
-                      {cancellingId === tx.id ? 'Confirm?' : 'Cancel'}
-                    </button>
                   )}
                 </div>
               </div>

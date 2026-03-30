@@ -3,18 +3,17 @@
 import { useParams, useRouter } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
 import { useFamily } from '@/context/FamilyContext'
+import Link from 'next/link'
 
 export default function TransactionDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { store, cancelTransaction } = useFamily()
+  const { store } = useFamily()
   const [playing, setPlaying] = useState(false)
-  const [confirmCancel, setConfirmCancel] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const tx = store.transactions.find(t => t.id === id)
 
-  // Clean up audio on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -63,16 +62,6 @@ export default function TransactionDetailPage() {
     audio.onended = () => setPlaying(false)
     audio.play()
     setPlaying(true)
-  }
-
-  function handleCancel() {
-    if (!tx) return
-    if (!confirmCancel) {
-      setConfirmCancel(true)
-      return
-    }
-    cancelTransaction(tx.id)
-    router.back()
   }
 
   const timestamp = new Date(tx.timestamp)
@@ -170,17 +159,12 @@ export default function TransactionDetailPage() {
         {/* Cancel Action */}
         {canCancel && (
           <div className="px-5 py-3 border-t border-line-subtle">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className={`w-full py-2 rounded-xl text-sm font-bold transition-colors ${
-                confirmCancel
-                  ? 'bg-red-500 text-white hover:bg-red-600'
-                  : 'bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100'
-              }`}
+            <Link
+              href={`/parent/history/${tx.id}/cancel`}
+              className="block w-full py-2.5 rounded-xl text-sm font-bold text-center bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100 transition-colors"
             >
-              {confirmCancel ? 'Confirm Cancel — This will reverse the points' : 'Cancel This Action'}
-            </button>
+              Cancel This Action
+            </Link>
           </div>
         )}
       </div>
