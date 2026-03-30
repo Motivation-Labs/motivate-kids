@@ -1758,6 +1758,18 @@ Settings tab: href changes from '/parent/more' to '/parent/settings'
     - Must also clean up wife's orphan family V5Z-ESH and link her auth user to the "fei" member in MJL-PU3
   - **Tests Required:** Full invite→signup→join flow, existing user invite flow, duplicate join rejection, fetchFamilyData for owner vs member
 
+- [ ] **FB-27: Home activity feed — clickable records + inline audio play** — Make activity records on the home dashboard tappable to view transaction details (photos, audio), and add an inline play button for voice memos
+  - **User:** Parents
+  - **Acceptance Criteria:**
+    - Each transaction row in the main activity feed links to `/parent/history/[id]` detail page
+    - Each transaction row in the per-kid bottom sheet links to the same detail page
+    - Transactions with voice memos show a small inline play/pause button
+    - Tapping the play button plays audio without navigating away
+    - Tapping anywhere else on the row navigates to the detail page
+    - Photo (📷) and voice (🎤) indicators remain visible
+  - **Technical Notes:** Wrap row content in `<Link>` to detail page. Add inline `<button>` for audio play that calls `e.preventDefault()` + `e.stopPropagation()` to prevent navigation. Reuse existing `/parent/history/[id]/page.tsx` detail page.
+  - **Tests Required:** Row click navigates to detail, play button plays audio without navigating, rows without audio have no play button
+
 - [ ] **FB-22: Remove member — in-app confirmation** — Replace `window.confirm()` with a proper bottom-sheet confirmation modal
   - **User:** Family owner
   - **Acceptance Criteria:**

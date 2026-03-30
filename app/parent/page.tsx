@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useFamily } from '@/context/FamilyContext'
 import { useLocale } from '@/context/LocaleContext'
 import { GettingStarted } from '@/components/GettingStarted'
@@ -16,6 +17,40 @@ import { DailyPointsChart } from '@/components/DailyPointsChart'
 import { PhotoCapture } from '@/components/PhotoCapture'
 import { VoiceRecorder } from '@/components/VoiceRecorder'
 import type { Transaction } from '@/types'
+
+function InlinePlayButton({ voiceMemoUrl, size = 'md' }: { voiceMemoUrl: string; size?: 'sm' | 'md' }) {
+  const [playing, setPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  function handleClick(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (playing && audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      setPlaying(false)
+      return
+    }
+    const audio = new Audio(voiceMemoUrl)
+    audioRef.current = audio
+    audio.onended = () => setPlaying(false)
+    audio.play()
+    setPlaying(true)
+  }
+
+  const sizeClass = size === 'sm' ? 'text-[10px] ml-0.5' : 'text-xs ml-0.5'
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`${sizeClass} opacity-60 hover:opacity-100 transition-opacity inline-flex items-center`}
+      aria-label={playing ? 'Pause voice memo' : 'Play voice memo'}
+    >
+      {playing ? '⏸' : '▶️🎤'}
+    </button>
+  )
+}
 
 type QuickType = 'earn' | 'deduct' | 'redeem'
 
@@ -485,9 +520,10 @@ export default function ParentDashboard() {
                       const isEarn = tx.type === 'earn'
                       const icon = tx.type === 'redeem' ? '🎁' : (tx.actionId ? getCategoryEmoji(tx.actionId) : '⭐')
                       return (
-                        <div
+                        <Link
                           key={tx.id}
-                          className={`flex items-center gap-3 px-3 py-2.5 ${i < group.txs.length - 1 ? 'border-b border-line-subtle' : ''}`}
+                          href={`/parent/history/${tx.id}`}
+                          className={`flex items-center gap-3 px-3 py-2.5 ${i < group.txs.length - 1 ? 'border-b border-line-subtle' : ''} active:bg-page/50 transition-colors`}
                         >
                           <AvatarDisplay avatar={kid?.avatar ?? '👦'} size={24} frame={kid?.avatarFrame} />
                           <span className="text-base flex-shrink-0">{icon}</span>
@@ -495,7 +531,7 @@ export default function ParentDashboard() {
                             <p className="text-sm font-medium text-ink-primary truncate">
                               {getTxLabel(tx)}
                               {tx.photoUrl && <span className="ml-1 text-xs opacity-60">📷</span>}
-                              {tx.voiceMemoUrl && <span className="ml-0.5 text-xs opacity-60">🎙</span>}
+                              {tx.voiceMemoUrl && <InlinePlayButton voiceMemoUrl={tx.voiceMemoUrl} />}
                             </p>
                             <p className="text-[10px] text-ink-muted leading-none mt-0.5">
                               {kid?.name} · {timeLabel(tx.timestamp)}
@@ -505,13 +541,13 @@ export default function ParentDashboard() {
                             {isEarn ? '+' : '−'}{tx.amount}⭐
                           </span>
                           <button
-                            onClick={() => handleDeleteTx(tx)}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteTx(tx) }}
                             className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 text-xs p-1"
                             aria-label="Delete"
                           >
                             ✕
                           </button>
-                        </div>
+                        </Link>
                       )
                     })}
                   </div>
@@ -888,16 +924,20 @@ export default function ParentDashboard() {
                       const isEarn = tx.type === 'earn'
                       const icon = tx.type === 'redeem' ? '🎁' : (tx.actionId ? getCategoryEmoji(tx.actionId) : '⭐')
                       return (
-                        <div key={tx.id} className="flex items-center gap-2 py-1.5">
+                        <Link key={tx.id} href={`/parent/history/${tx.id}`} className="flex items-center gap-2 py-1.5 active:opacity-70 transition-opacity" onClick={(e) => e.stopPropagation()}>
                           <span className="text-sm flex-shrink-0">{icon}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-ink-primary truncate">{getTxLabel(tx)}</p>
+                            <p className="text-xs font-medium text-ink-primary truncate">
+                              {getTxLabel(tx)}
+                              {tx.photoUrl && <span className="ml-1 text-[10px] opacity-60">📷</span>}
+                              {tx.voiceMemoUrl && <InlinePlayButton voiceMemoUrl={tx.voiceMemoUrl} size="sm" />}
+                            </p>
                             <p className="text-[10px] text-ink-muted">{timeLabel(tx.timestamp)}</p>
                           </div>
                           <span className={`text-xs font-bold flex-shrink-0 ${isEarn ? 'text-green-500' : 'text-red-400'}`}>
                             {isEarn ? '+' : '−'}{tx.amount}⭐
                           </span>
-                        </div>
+                        </Link>
                       )
                     })}
                   </div>
